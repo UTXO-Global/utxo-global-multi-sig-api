@@ -1,0 +1,8 @@
+/target
+**/*.rs.bk
+.idea
+.env
+.env.local
+.DS_Store
+note
+k8s
