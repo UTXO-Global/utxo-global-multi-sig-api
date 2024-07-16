@@ -81,6 +81,33 @@ impl MultiSigDao {
         Ok(accounts)
     }
 
+    pub async fn request_list_transactions(
+        &self,
+        signer_address: &String,
+        offset: i32,
+        limit: i32,
+    ) -> Result<Vec<CkbTransaction>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT tx.* FROM transactions tx
+            LEFT JOIN cells
+                ON cells.transaction_id = tx.transaction_id
+            LEFT JOIN multi_sig_signers mss
+                ON mss.multi_sig_address = cells.multi_sig_address
+            WHERE mss.signer_address=$1
+            OFFSET $2 LIMIT $3;";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let txs = client
+            .query(&stmt, &[&signer_address, &offset, &limit])
+            .await?
+            .iter()
+            .map(|row| CkbTransaction::from_row_ref(&row).unwrap())
+            .collect::<Vec<CkbTransaction>>();
+
+        Ok(txs)
+    }
+
     pub async fn create_new_account(
         &self,
         multi_sig_address: &String,

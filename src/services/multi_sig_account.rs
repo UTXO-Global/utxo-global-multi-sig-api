@@ -25,7 +25,6 @@ impl MultiSigSrv {
     }
 
     pub async fn request_multi_sig_info(&self, address: &String) -> Result<MultiSigInfo, AppError> {
-        let address = address.to_lowercase();
         match self
             .multi_sig_dao
             .request_multi_sig_info(&address.clone())
@@ -41,7 +40,6 @@ impl MultiSigSrv {
         &self,
         address: &String,
     ) -> Result<Vec<MultiSigSigner>, AppError> {
-        let address = address.to_lowercase();
         self.multi_sig_dao
             .request_list_signers(&address.clone())
             .await
@@ -52,9 +50,20 @@ impl MultiSigSrv {
         &self,
         signer_address: &String,
     ) -> Result<Vec<MultiSigInfo>, AppError> {
-        let signer_address = signer_address.to_lowercase();
         self.multi_sig_dao
             .request_list_accounts(&signer_address.clone())
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))
+    }
+
+    pub async fn request_list_transactions(
+        &self,
+        signer_address: &String,
+        offset: i32,
+        limit: i32,
+    ) -> Result<Vec<CkbTransaction>, AppError> {
+        self.multi_sig_dao
+            .request_list_transactions(&signer_address.clone(), offset, limit)
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
     }

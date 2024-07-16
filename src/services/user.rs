@@ -27,7 +27,6 @@ impl UserSrv {
     }
 
     pub async fn get_nonce(&self, address: &String) -> Result<UserRequestNonceRes, AppError> {
-        let address = address.to_lowercase();
         match self
             .user_dao
             .get_user_by_address(&address.clone())
@@ -67,7 +66,7 @@ impl UserSrv {
     async fn verify_signature(&self, req: LoginReq) -> Result<User, AppError> {
         match self
             .user_dao
-            .get_user_by_address(&req.address.to_lowercase())
+            .get_user_by_address(&req.address)
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?
         {
@@ -87,7 +86,7 @@ impl UserSrv {
 
                 match sig.recover(message_hash) {
                     Ok(recovered) => {
-                        if recovered == req.address.to_lowercase().parse::<Address>().unwrap() {
+                        if recovered == req.address.parse::<Address>().unwrap() {
                             Ok(user.clone())
                         } else {
                             Err(AppError::new(500).message("Signature not matched"))
@@ -106,7 +105,7 @@ impl UserSrv {
                 // create jwt
                 let expired_time = (Utc::now() + chrono::Duration::hours(24)).timestamp() as usize;
                 let my_claims = Claims {
-                    sub: req.address.to_lowercase(),
+                    sub: req.address,
                     exp: expired_time,
                     aud: false,
                     iat: Utc::now().timestamp() as usize,
@@ -131,7 +130,7 @@ impl UserSrv {
         user.nonce = Some(Uuid::new_v4().to_string());
         let res = self
             .user_dao
-            .update_user(&user.user_address.to_lowercase(), user.clone())
+            .update_user(&user.user_address, user.clone())
             .await;
         return res.is_ok();
     }

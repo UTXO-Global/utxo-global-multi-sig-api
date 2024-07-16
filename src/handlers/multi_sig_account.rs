@@ -1,7 +1,9 @@
 use crate::{
     serialize::{
         error::AppError,
-        multi_sig_account::{NewMultiSigAccountReq, NewTransferReq, SubmitSignatureReq},
+        multi_sig_account::{
+            NewMultiSigAccountReq, NewTransferReq, SubmitSignatureReq, TransactionFilters,
+        },
     },
     services::multi_sig_account::MultiSigSrv,
 };
@@ -32,6 +34,24 @@ async fn request_list_accounts(
     multi_sig_srv: web::Data<MultiSigSrv>,
 ) -> Result<HttpResponse, AppError> {
     match multi_sig_srv.request_list_accounts(&signer_address).await {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
+    }
+}
+
+async fn request_list_transactions(
+    query: web::Query<TransactionFilters>,
+    signer_address: web::Path<String>,
+    multi_sig_srv: web::Data<MultiSigSrv>,
+) -> Result<HttpResponse, AppError> {
+    match multi_sig_srv
+        .request_list_transactions(
+            &signer_address,
+            query.offset.unwrap_or(0),
+            query.limit.unwrap_or(10),
+        )
+        .await
+    {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
         Err(err) => Err(err),
     }
@@ -83,6 +103,10 @@ pub fn route(conf: &mut web::ServiceConfig) {
             .route("/info/{address}", web::get().to(request_multi_sig_info))
             .route("/list/{address}", web::get().to(request_list_signers))
             .route("/accounts/{address}", web::get().to(request_list_accounts))
+            .route(
+                "/transactions/{address}",
+                web::get().to(request_list_transactions),
+            )
             .route("/new-transfer", web::post().to(create_new_transfer))
             .route("/signature", web::post().to(submit_signature))
             .route("/new-account", web::post().to(create_new_account)),

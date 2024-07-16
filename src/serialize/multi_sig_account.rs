@@ -18,3 +18,9 @@ pub struct SubmitSignatureReq {
     pub signature: String,
     pub txid: String,
 }
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct TransactionFilters {
+    pub offset: Option<i32>,
+    pub limit: Option<i32>,
+}
