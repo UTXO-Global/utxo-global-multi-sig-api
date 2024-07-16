@@ -6,3 +6,9 @@ pub struct NewMultiSigAccountReq {
     pub threshold: i16,
     pub signers: Vec<String>,
 }
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NewTransferReq {
+    pub signature: String,
+    pub payload: String,
+}

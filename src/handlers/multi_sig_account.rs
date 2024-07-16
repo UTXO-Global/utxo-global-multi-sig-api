@@ -1,5 +1,8 @@
 use crate::{
-    serialize::{error::AppError, multi_sig_account::NewMultiSigAccountReq},
+    serialize::{
+        error::AppError,
+        multi_sig_account::{NewMultiSigAccountReq, NewTransferReq},
+    },
     services::multi_sig_account::MultiSigSrv,
 };
 use actix_web::{web, HttpResponse};
@@ -44,12 +47,28 @@ async fn create_new_account(
     }
 }
 
+async fn create_new_transfer(
+    multi_sig_srv: web::Data<MultiSigSrv>,
+    req: web::Json<NewTransferReq>,
+) -> Result<HttpResponse, AppError> {
+    // TODO: get user address from credential authentication
+    let user_address = "".to_string();
+    match multi_sig_srv
+        .create_new_transfer(&user_address, &req.signature, &req.payload)
+        .await
+    {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
+    }
+}
+
 pub fn route(conf: &mut web::ServiceConfig) {
     conf.service(
         web::scope("/multi-sig")
             .route("/info/{address}", web::get().to(request_multi_sig_info))
             .route("/list/{address}", web::get().to(request_list_signers))
             .route("/accounts/{address}", web::get().to(request_list_accounts))
+            .route("/new-transfer", web::post().to(create_new_transfer))
             .route("/new-account", web::post().to(create_new_account)),
     );
 }

@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    models::multi_sig_account::{MultiSigInfo, MultiSigSigner},
+    models::{
+        multi_sig_account::{MultiSigInfo, MultiSigSigner},
+        multi_sig_tx::CkbTransaction,
+    },
     serialize::multi_sig_account::NewMultiSigAccountReq,
 };
 use chrono::Utc;
@@ -104,6 +107,56 @@ impl MultiSigDao {
             threshold: req.threshold,
             signers: req.signers.len() as i16,
             name: req.name.clone(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        })
+    }
+
+    pub async fn create_new_transfer(
+        &self,
+        multi_sig_address: &String,
+        outpoints: Vec<String>,
+        transaction_id: &String,
+        payload: &String,
+        signer_address: &String,
+        signature: &String,
+    ) -> Result<CkbTransaction, PoolError> {
+        let mut client: Client = self.db.get().await?;
+
+        let db_transaction = client.transaction().await?;
+
+        // Create tx
+        let _stmt =
+            "INSERT INTO transactions (transaction_id, payload, status) VALUES ($1, $2, 0);";
+        let stmt = db_transaction.prepare(&_stmt).await?;
+        db_transaction
+            .execute(&stmt, &[transaction_id, payload])
+            .await?;
+
+        // Create cells from tx info
+        for outpoint in outpoints {
+            let _stmt =
+            "INSERT INTO cells (multi_sig_address, outpoint, transaction_id, status) VALUES ($1, $2, 0);";
+            let stmt = db_transaction.prepare(&_stmt).await?;
+            db_transaction
+                .execute(&stmt, &[multi_sig_address, &outpoint, transaction_id])
+                .await?;
+        }
+
+        // Add first signature - requester of this new transaction
+        let _stmt =
+            "INSERT INTO signatures (signer_address, transaction_id, signature) VALUES ($1, $2, $3);";
+        let stmt = db_transaction.prepare(&_stmt).await?;
+        db_transaction
+            .execute(&stmt, &[signer_address, transaction_id, signature])
+            .await?;
+
+        db_transaction.commit().await?;
+
+        Ok(CkbTransaction {
+            transaction_id: transaction_id.clone(),
+            payload: payload.clone(),
+            status: 0,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })

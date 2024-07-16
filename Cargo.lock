@@ -5215,6 +5215,7 @@ dependencies = [
  "actix-web",
  "base64 0.21.7",
  "chrono",
+ "ckb-jsonrpc-types",
  "ckb-sdk",
  "ckb-types",
  "config",
