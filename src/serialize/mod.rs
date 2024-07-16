@@ -9,4 +9,5 @@ pub struct Claims {
 }
 
 pub mod error;
+pub mod multi_sig_account;
 pub mod user;

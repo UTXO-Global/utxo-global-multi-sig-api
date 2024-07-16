@@ -28,6 +28,11 @@ impl AppError {
         self.message = Some(message.to_string());
         self
     }
+
+    pub fn cause<E: std::error::Error + 'static>(mut self, cause: E) -> Self {
+        self.cause = Some(Box::new(cause));
+        self
+    }
 }
 
 impl Display for AppError {

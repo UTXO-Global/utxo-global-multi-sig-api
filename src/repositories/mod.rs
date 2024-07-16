@@ -16,4 +16,5 @@ pub static DB_POOL: Lazy<Arc<Pool>> = Lazy::new(|| {
     Arc::new(pool)
 });
 
+pub mod multi_sig_account;
 pub mod user;

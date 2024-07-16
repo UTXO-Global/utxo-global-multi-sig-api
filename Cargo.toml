@@ -33,3 +33,5 @@ tokio-postgres = { version = "0.7.10", features = ["with-chrono-0_4"] }
 deadpool-postgres = { version = "0.12.1", features = ["serde"] }
 tokio-pg-mapper = { version = "0.2.0", features = ["tokio-pg-mapper-derive"] }
 tokio-pg-mapper-derive = "0.2.0"
+ckb-sdk = "3.2.1"
+ckb-types = "0.116.1"
