@@ -1,4 +1,9 @@
-use crate::{config, handlers::multi_sig_account, repositories, services};
+use crate::{
+    config,
+    handlers::multi_sig_account,
+    repositories::{self, db::DB_POOL},
+    services,
+};
 use actix_cors::Cors;
 use actix_web::{middleware, web, App, HttpServer};
 
@@ -11,7 +16,7 @@ pub fn init_routes(cfg: &mut web::ServiceConfig) {
 
 pub async fn create_app() -> std::io::Result<()> {
     // Init DB
-    let db = &repositories::DB_POOL.clone();
+    let db = &DB_POOL.clone();
     let user_dao = repositories::user::UserDao::new(db.clone());
     let multi_sig_dao = repositories::multi_sig_account::MultiSigDao::new(db.clone());
     let user_service = web::Data::new(services::user::UserSrv::new(user_dao));

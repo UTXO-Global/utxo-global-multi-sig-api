@@ -229,4 +229,26 @@ impl MultiSigDao {
             updated_at: Utc::now().naive_utc(),
         })
     }
+
+    pub async fn get_matched_signer(
+        &self,
+        signer_address: &String,
+        multi_sig_address: &String,
+    ) -> Result<Option<MultiSigSigner>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT * FROM multi_sig_signers
+            WHERE multi_sig_address=$1 AND signer_address=$2;";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let row = client
+            .query(&stmt, &[&multi_sig_address, &signer_address])
+            .await?
+            .pop();
+
+        Ok(match row {
+            Some(row) => Some(MultiSigSigner::from_row_ref(&row).unwrap()),
+            None => None,
+        })
+    }
 }

@@ -1,15 +1,19 @@
 use std::str::FromStr;
 
-use crate::config;
 use crate::models::multi_sig_tx::CkbTransaction;
+use crate::repositories::ckb::{get_ckb_client, get_ckb_network};
 use crate::{
     models::multi_sig_account::{MultiSigInfo, MultiSigSigner},
     repositories::multi_sig_account::MultiSigDao,
     serialize::{error::AppError, multi_sig_account::NewMultiSigAccountReq},
 };
-use ckb_sdk::{unlock::MultisigConfig, Address, NetworkType};
+use ckb_sdk::constants::MULTISIG_TYPE_HASH;
+use ckb_sdk::AddressPayload;
+use ckb_sdk::{unlock::MultisigConfig, Address};
+use ckb_types::bytes::Bytes;
+use ckb_types::core::ScriptHashType;
 use ckb_types::packed::Transaction;
-use ckb_types::prelude::IntoTransactionView;
+use ckb_types::prelude::{IntoTransactionView, Pack};
 use ckb_types::H160;
 
 #[derive(Clone, Debug)]
@@ -87,19 +91,62 @@ impl MultiSigSrv {
                 .message("cannot generate multisig address")
         })?;
 
-        let network: String = config::get("network");
-        let sender = multisig_config.to_address(
-            match network.as_str() {
-                "mainnet" => NetworkType::Mainnet,
-                _ => NetworkType::Testnet,
-            },
-            None,
-        );
+        let sender = multisig_config.to_address(get_ckb_network(), None);
 
         self.multi_sig_dao
             .create_new_account(&sender.to_string(), &req)
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
+    }
+
+    fn validate_outpoints(
+        &self,
+        outpoints: &Vec<ckb_jsonrpc_types::OutPoint>,
+    ) -> Result<String, AppError> {
+        let mut multi_sig_address = "".to_string();
+        for outpoint in outpoints.clone() {
+            let cell_with_status = get_ckb_client().get_live_cell(outpoint, false).unwrap();
+            if cell_with_status.status.ne(&"live".to_owned()) {
+                return Err(AppError::new(400).message("invalid outpoint - consumed"));
+            }
+
+            let address = Address::new(
+                get_ckb_network(),
+                AddressPayload::new_full(
+                    ScriptHashType::Type,
+                    MULTISIG_TYPE_HASH.pack(),
+                    Bytes::copy_from_slice(
+                        cell_with_status.cell.unwrap().output.lock.args.as_bytes(),
+                    ),
+                ),
+                true,
+            )
+            .to_string();
+
+            if multi_sig_address.is_empty() {
+                multi_sig_address = address;
+            } else if multi_sig_address.ne(&address) {
+                return Err(AppError::new(400).message("invalid outpoint - not owned"));
+            }
+        }
+        return Ok(multi_sig_address);
+    }
+
+    async fn validate_signer(
+        &self,
+        signer_address: &String,
+        multi_sig_address: &String,
+    ) -> Result<(), AppError> {
+        let signer = self
+            .multi_sig_dao
+            .get_matched_signer(signer_address, multi_sig_address)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+        if signer.is_none() {
+            return Err(AppError::new(401).message("invalid signer"));
+        }
+
+        return Ok(());
     }
 
     pub async fn create_new_transfer(
@@ -117,12 +164,22 @@ impl MultiSigSrv {
         let tx = Transaction::from(tx_info.inner).into_view();
         let tx_id = tx.hash().to_string();
 
-        let multi_sig_address = "".to_string();
-        let outpoints: Vec<String> = tx.input_pts_iter().map(|input| input.to_string()).collect();
-        // TODO validate outpoints status from CKB node
+        let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
+            .input_pts_iter()
+            .map(|outpoint| ckb_jsonrpc_types::OutPoint::from(outpoint))
+            .collect();
 
-        // TODO Validate if user is one of multi-sig signers
+        // validate outpoints status from CKB node
+        let multi_sig_address = self.validate_outpoints(&outpoints)?;
 
+        // Validate if user is one of multi-sig signers
+        self.validate_signer(&signer_address, &multi_sig_address)
+            .await?;
+
+        let outpoints: Vec<String> = outpoints
+            .into_iter()
+            .map(|outpoint| format!("{}:{}", outpoint.tx_hash, outpoint.index.value()))
+            .collect();
         let ckb_tx = self
             .multi_sig_dao
             .create_new_transfer(
@@ -172,11 +229,16 @@ impl MultiSigSrv {
         let tx = Transaction::from(tx_info.inner).into_view();
         let tx_id = tx.hash().to_string();
 
-        // let multi_sig_address = "".to_string();
-        // let outpoints: Vec<String> = tx.input_pts_iter().map(|input| input.to_string()).collect();
-        // TODO validate outpoints status from CKB node
+        let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
+            .input_pts_iter()
+            .map(|outpoint| ckb_jsonrpc_types::OutPoint::from(outpoint))
+            .collect();
+        // validate outpoints status from CKB node
+        let multi_sig_address = self.validate_outpoints(&outpoints)?;
 
-        // TODO Validate if user is one of multi-sig signers
+        // Validate if user is one of multi-sig signers
+        self.validate_signer(&signer_address, &multi_sig_address)
+            .await?;
 
         let ckb_tx = self
             .multi_sig_dao
