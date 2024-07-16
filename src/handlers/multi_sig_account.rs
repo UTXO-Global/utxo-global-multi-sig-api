@@ -1,7 +1,7 @@
 use crate::{
     serialize::{
         error::AppError,
-        multi_sig_account::{NewMultiSigAccountReq, NewTransferReq},
+        multi_sig_account::{NewMultiSigAccountReq, NewTransferReq, SubmitSignatureReq},
     },
     services::multi_sig_account::MultiSigSrv,
 };
@@ -62,6 +62,21 @@ async fn create_new_transfer(
     }
 }
 
+async fn submit_signature(
+    multi_sig_srv: web::Data<MultiSigSrv>,
+    req: web::Json<SubmitSignatureReq>,
+) -> Result<HttpResponse, AppError> {
+    // TODO: get user address from credential authentication
+    let user_address = "".to_string();
+    match multi_sig_srv
+        .submit_signature(&user_address, &req.signature, &req.txid)
+        .await
+    {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
+    }
+}
+
 pub fn route(conf: &mut web::ServiceConfig) {
     conf.service(
         web::scope("/multi-sig")
@@ -69,6 +84,7 @@ pub fn route(conf: &mut web::ServiceConfig) {
             .route("/list/{address}", web::get().to(request_list_signers))
             .route("/accounts/{address}", web::get().to(request_list_accounts))
             .route("/new-transfer", web::post().to(create_new_transfer))
+            .route("/signature", web::post().to(submit_signature))
             .route("/new-account", web::post().to(create_new_account)),
     );
 }

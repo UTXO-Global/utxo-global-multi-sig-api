@@ -12,3 +12,9 @@ pub struct NewTransferReq {
     pub signature: String,
     pub payload: String,
 }
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SubmitSignatureReq {
+    pub signature: String,
+    pub txid: String,
+}

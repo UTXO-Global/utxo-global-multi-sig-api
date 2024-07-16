@@ -131,4 +131,52 @@ impl MultiSigSrv {
 
         Ok(ckb_tx)
     }
+
+    async fn get_tx_by_hash(&self, txid: &String) -> Result<CkbTransaction, AppError> {
+        match self
+            .multi_sig_dao
+            .get_tx_by_hash(&txid.clone())
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?
+        {
+            Some(info) => Ok(info),
+            None => Err(AppError::new(404).message("tx not found")),
+        }
+    }
+
+    pub async fn submit_signature(
+        &self,
+        signer_address: &String,
+        signature: &String,
+        txid: &String,
+    ) -> Result<CkbTransaction, AppError> {
+        let ckb_tx = self.get_tx_by_hash(txid).await?;
+
+        // TODO check tx status
+
+        let tx_info: ckb_jsonrpc_types::TransactionView =
+            serde_json::from_str(ckb_tx.payload.as_str()).map_err(|err| {
+                AppError::new(400)
+                    .cause(err)
+                    .message("invalid transaction json")
+            })?;
+        let tx = Transaction::from(tx_info.inner).into_view();
+        let tx_id = tx.hash().to_string();
+
+        // let multi_sig_address = "".to_string();
+        // let outpoints: Vec<String> = tx.input_pts_iter().map(|input| input.to_string()).collect();
+        // TODO validate outpoints status from CKB node
+
+        // TODO Validate if user is one of multi-sig signers
+
+        let ckb_tx = self
+            .multi_sig_dao
+            .add_signature(&tx_id, &ckb_tx.payload, signer_address, signature)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+
+        // TODO: check if threshold is reached => broadcast tx
+
+        Ok(ckb_tx)
+    }
 }

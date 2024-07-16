@@ -161,4 +161,45 @@ impl MultiSigDao {
             updated_at: Utc::now().naive_utc(),
         })
     }
+
+    pub async fn get_tx_by_hash(&self, txid: &String) -> Result<Option<CkbTransaction>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT * FROM transactions 
+            WHERE transaction_id=$1;";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let row = client.query(&stmt, &[&txid]).await?.pop();
+
+        Ok(match row {
+            Some(row) => Some(CkbTransaction::from_row_ref(&row).unwrap()),
+            None => None,
+        })
+    }
+
+    pub async fn add_signature(
+        &self,
+        transaction_id: &String,
+        payload: &String,
+        signer_address: &String,
+        signature: &String,
+    ) -> Result<CkbTransaction, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        // Add signature
+        let _stmt =
+            "INSERT INTO signatures (signer_address, transaction_id, signature) VALUES ($1, $2, $3);";
+        let stmt = client.prepare(&_stmt).await?;
+        client
+            .execute(&stmt, &[signer_address, transaction_id, signature])
+            .await?;
+
+        Ok(CkbTransaction {
+            transaction_id: transaction_id.clone(),
+            payload: payload.clone(),
+            status: 0,
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        })
+    }
 }
