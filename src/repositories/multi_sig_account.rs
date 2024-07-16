@@ -56,6 +56,28 @@ impl MultiSigDao {
         Ok(signers)
     }
 
+    pub async fn request_list_accounts(
+        &self,
+        address: &String,
+    ) -> Result<Vec<MultiSigInfo>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT msi.* FROM multi_sig_info msi
+            LEFT JOIN multi_sig_signers mss 
+                ON mss.multi_sig_address = msi.multi_sig_address
+            WHERE mss.signer_address=$1;";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let accounts = client
+            .query(&stmt, &[&address])
+            .await?
+            .iter()
+            .map(|row| MultiSigInfo::from_row_ref(&row).unwrap())
+            .collect::<Vec<MultiSigInfo>>();
+
+        Ok(accounts)
+    }
+
     pub async fn create_new_account(
         &self,
         multi_sig_address: &String,

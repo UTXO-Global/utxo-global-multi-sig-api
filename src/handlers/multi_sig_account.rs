@@ -24,6 +24,16 @@ async fn request_list_signers(
     }
 }
 
+async fn request_list_accounts(
+    signer_address: web::Path<String>,
+    multi_sig_srv: web::Data<MultiSigSrv>,
+) -> Result<HttpResponse, AppError> {
+    match multi_sig_srv.request_list_accounts(&signer_address).await {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
+    }
+}
+
 async fn create_new_account(
     multi_sig_srv: web::Data<MultiSigSrv>,
     req: web::Json<NewMultiSigAccountReq>,
@@ -39,6 +49,7 @@ pub fn route(conf: &mut web::ServiceConfig) {
         web::scope("/multi-sig")
             .route("/info/{address}", web::get().to(request_multi_sig_info))
             .route("/list/{address}", web::get().to(request_list_signers))
+            .route("/accounts/{address}", web::get().to(request_list_accounts))
             .route("/new-account", web::post().to(create_new_account)),
     );
 }

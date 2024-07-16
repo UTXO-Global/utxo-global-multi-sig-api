@@ -45,6 +45,17 @@ impl MultiSigSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()))
     }
 
+    pub async fn request_list_accounts(
+        &self,
+        signer_address: &String,
+    ) -> Result<Vec<MultiSigInfo>, AppError> {
+        let signer_address = signer_address.to_lowercase();
+        self.multi_sig_dao
+            .request_list_accounts(&signer_address.clone())
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))
+    }
+
     pub async fn create_new_account(
         &self,
         req: NewMultiSigAccountReq,
