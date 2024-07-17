@@ -14,11 +14,11 @@ fn main() {
         MULTISIG_TYPE_HASH.pack(),
         Bytes::copy_from_slice(arg.as_bytes()),
     );
-    let address = Address::new(NetworkType::Mainnet, payload, true);
+    let address = Address::new(NetworkType::Testnet, payload, true);
     println!("address full {}", address);
 
     // Short
     let payload = AddressPayload::new_short(CodeHashIndex::Multisig, arg);
-    let address = Address::new(NetworkType::Mainnet, payload, true);
+    let address = Address::new(NetworkType::Testnet, payload, true);
     println!("address short {}", address);
 }

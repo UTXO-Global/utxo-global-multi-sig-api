@@ -74,7 +74,7 @@ async fn create_new_transfer(
     // TODO: get user address from credential authentication
     let user_address = "".to_string();
     match multi_sig_srv
-        .create_new_transfer(&user_address, &req.signatures, &req.payload)
+        .create_new_transfer(&user_address, &req.signature, &req.payload)
         .await
     {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
@@ -89,7 +89,7 @@ async fn submit_signature(
     // TODO: get user address from credential authentication
     let user_address = "".to_string();
     match multi_sig_srv
-        .submit_signature(&user_address, &req.signatures, &req.txid)
+        .submit_signature(&user_address, &req.signature, &req.txid)
         .await
     {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),

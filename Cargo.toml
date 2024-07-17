@@ -2,11 +2,7 @@
 name = "utxo-global-multi-sig-api"
 version = "0.1.0"
 edition = "2021"
-
-[features]
-default = ["three"]
-three = []
-five = []
+default-run = "app"
 
 [[bin]]
 name = "test_address"

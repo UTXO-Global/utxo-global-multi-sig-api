@@ -1,21 +1,19 @@
-use std::str::FromStr;
-
 use crate::models::multi_sig_tx::CkbTransaction;
-use crate::repositories::ckb::{add_signature_to_witness, get_ckb_client, get_ckb_network};
+use crate::repositories::ckb::{
+    add_signature_to_witness, get_ckb_client, get_ckb_network, get_multisig_config,
+};
 use crate::{
     models::multi_sig_account::{MultiSigInfo, MultiSigSigner},
     repositories::multi_sig_account::MultiSigDao,
     serialize::{error::AppError, multi_sig_account::NewMultiSigAccountReq},
 };
 use ckb_sdk::constants::MULTISIG_TYPE_HASH;
+use ckb_sdk::Address;
 use ckb_sdk::AddressPayload;
-use ckb_sdk::{unlock::MultisigConfig, Address};
 use ckb_types::bytes::Bytes;
 use ckb_types::core::{ScriptHashType, TransactionView};
 use ckb_types::packed::Transaction;
 use ckb_types::prelude::{IntoTransactionView, Pack};
-use ckb_types::H160;
-use ethers::utils::hex::ToHexExt;
 
 #[derive(Clone, Debug)]
 pub struct MultiSigSrv {
@@ -77,23 +75,8 @@ impl MultiSigSrv {
         &self,
         req: NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, AppError> {
-        let mut sighash_addresses: Vec<H160> = vec![];
-        for signer in req.signers.iter() {
-            let address = Address::from_str(signer.as_str())
-                .map_err(|_| AppError::new(400).message("invalid address"))?;
-            // https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0021-ckb-address-format/0021-ckb-address-format.md#short-payload-format
-            let sighash_address = address.payload().args();
-            sighash_addresses.push(H160::from_slice(sighash_address.as_ref()).unwrap());
-        }
-        let multisig_config = MultisigConfig::new_with(sighash_addresses, 0, req.threshold as u8)
-            .map_err(|e| {
-            AppError::new(400)
-                .cause(e)
-                .message("cannot generate multisig address")
-        })?;
-
-        let sender = multisig_config.to_address(get_ckb_network(), None);
-        let mutli_sig_witness_data = multisig_config.to_witness_data().encode_hex();
+        let (sender, mutli_sig_witness_data) =
+            get_multisig_config(req.signers.clone(), req.threshold as u8)?;
 
         self.multi_sig_dao
             .create_new_account(&sender.to_string(), &mutli_sig_witness_data, &req)
@@ -182,7 +165,7 @@ impl MultiSigSrv {
     pub async fn create_new_transfer(
         &self,
         signer_address: &String,
-        signatures: &Vec<String>,
+        signature: &String,
         payload: &String,
     ) -> Result<CkbTransaction, AppError> {
         let tx_info: ckb_jsonrpc_types::TransactionView = serde_json::from_str(payload.as_str())
@@ -198,11 +181,6 @@ impl MultiSigSrv {
             .input_pts_iter()
             .map(|outpoint| ckb_jsonrpc_types::OutPoint::from(outpoint))
             .collect();
-
-        // validate signatures match inputs length
-        if signatures.len().ne(&outpoints.len()) {
-            return Err(AppError::new(400).message("invalid signatures"));
-        }
 
         // validate outpoints status from CKB node
         let multi_sig_address = self.validate_outpoints(&outpoints)?;
@@ -225,7 +203,7 @@ impl MultiSigSrv {
                 &tx_id,
                 payload,
                 signer_address,
-                signatures,
+                signature,
             )
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
@@ -269,7 +247,7 @@ impl MultiSigSrv {
         {
             let signatures = ckb_signatures
                 .iter()
-                .map(|s| Bytes::from(s.signatures.clone()))
+                .map(|s| Bytes::from(s.signature.clone()))
                 .collect();
 
             // Add Signatures to witness
@@ -302,13 +280,12 @@ impl MultiSigSrv {
     pub async fn submit_signature(
         &self,
         signer_address: &String,
-        signatures: &Vec<String>,
+        signature: &String,
         txid: &String,
     ) -> Result<CkbTransaction, AppError> {
         let ckb_tx = self.get_tx_by_hash(txid).await?;
 
         // TODO check tx status
-
         let tx_info: ckb_jsonrpc_types::TransactionView =
             serde_json::from_str(ckb_tx.payload.as_str()).map_err(|err| {
                 AppError::new(400)
@@ -323,11 +300,6 @@ impl MultiSigSrv {
             .map(|outpoint| ckb_jsonrpc_types::OutPoint::from(outpoint))
             .collect();
 
-        // validate signatures match inputs length
-        if signatures.len().ne(&outpoints.len()) {
-            return Err(AppError::new(400).message("invalid signatures"));
-        }
-
         // validate outpoints status from CKB node
         // it should be check threshold on cells instead of checking by tx
         // currently all cells is belong to single multi-sig address so we able
@@ -341,7 +313,7 @@ impl MultiSigSrv {
 
         let ckb_tx: CkbTransaction = self
             .multi_sig_dao
-            .add_signature(&tx_id, &ckb_tx.payload, signer_address, signatures)
+            .add_signature(&tx_id, &ckb_tx.payload, signer_address, signature)
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 

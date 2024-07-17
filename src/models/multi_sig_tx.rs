@@ -36,7 +36,7 @@ pub struct CkbTransaction {
 pub struct CkbSignature {
     pub signer_address: String,
     pub transaction_id: String,
-    pub signatures: String,
+    pub signature: String,
 
     #[serde(skip_serializing)]
     pub created_at: NaiveDateTime,

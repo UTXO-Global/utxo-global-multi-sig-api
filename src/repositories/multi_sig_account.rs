@@ -149,7 +149,7 @@ impl MultiSigDao {
         transaction_id: &String,
         payload: &String,
         signer_address: &String,
-        signatures: &Vec<String>,
+        signature: &String,
     ) -> Result<CkbTransaction, PoolError> {
         let mut client: Client = self.db.get().await?;
 
@@ -175,13 +175,10 @@ impl MultiSigDao {
 
         // Add first signatures - requester of this new transaction
         let _stmt =
-            "INSERT INTO signatures (signer_address, transaction_id, signatures) VALUES ($1, $2, $3);";
+            "INSERT INTO signatures (signer_address, transaction_id, signature) VALUES ($1, $2, $3);";
         let stmt = db_transaction.prepare(&_stmt).await?;
         db_transaction
-            .execute(
-                &stmt,
-                &[signer_address, transaction_id, &signatures.join(",")],
-            )
+            .execute(&stmt, &[signer_address, transaction_id, &signature])
             .await?;
 
         db_transaction.commit().await?;
@@ -215,19 +212,16 @@ impl MultiSigDao {
         transaction_id: &String,
         payload: &String,
         signer_address: &String,
-        signatures: &Vec<String>,
+        signature: &String,
     ) -> Result<CkbTransaction, PoolError> {
         let client: Client = self.db.get().await?;
 
         // Add signature
         let _stmt =
-            "INSERT INTO signatures (signer_address, transaction_id, signatures) VALUES ($1, $2, $3);";
+            "INSERT INTO signatures (signer_address, transaction_id, signature) VALUES ($1, $2, $3);";
         let stmt = client.prepare(&_stmt).await?;
         client
-            .execute(
-                &stmt,
-                &[signer_address, transaction_id, &signatures.join(",")],
-            )
+            .execute(&stmt, &[signer_address, transaction_id, &signature])
             .await?;
 
         Ok(CkbTransaction {

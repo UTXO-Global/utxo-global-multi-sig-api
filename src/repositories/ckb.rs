@@ -1,12 +1,18 @@
+use std::str::FromStr;
+
 use crate::config;
+use crate::serialize::error::AppError;
 use anyhow::anyhow;
-use ckb_sdk::unlock::ScriptSignError;
+use ckb_sdk::unlock::{MultisigConfig, ScriptSignError};
+use ckb_sdk::Address;
 use ckb_sdk::{rpc::CkbRpcClient, NetworkType};
 use ckb_types::bytes::Bytes;
 use ckb_types::core::TransactionView;
 use ckb_types::packed::WitnessArgs;
 use ckb_types::prelude::Builder;
 use ckb_types::prelude::{Entity, Pack};
+use ckb_types::H160;
+use ethers::utils::hex::ToHexExt;
 
 pub fn get_ckb_client() -> CkbRpcClient {
     let rpc_url: String = config::get("ckb_rpc");
@@ -85,4 +91,29 @@ pub fn add_signature_to_witness(
         .build();
     witnesses[witness_idx] = current_witness.as_bytes().pack();
     Ok(tx.as_advanced_builder().set_witnesses(witnesses).build())
+}
+
+pub fn get_multisig_config(
+    signers: Vec<String>,
+    threshold: u8,
+) -> Result<(Address, String), AppError> {
+    let mut sighash_addresses: Vec<H160> = vec![];
+    for signer in signers.iter() {
+        let address = Address::from_str(signer.as_str())
+            .map_err(|_| AppError::new(400).message("invalid address"))?;
+        // https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0021-ckb-address-format/0021-ckb-address-format.md#short-payload-format
+        let sighash_address = address.payload().args();
+        sighash_addresses.push(H160::from_slice(sighash_address.as_ref()).unwrap());
+    }
+    let multisig_config =
+        MultisigConfig::new_with(sighash_addresses, 0, threshold).map_err(|e| {
+            AppError::new(400)
+                .cause(e)
+                .message("cannot generate multisig address")
+        })?;
+
+    let sender = multisig_config.to_address(get_ckb_network(), None);
+    let mutli_sig_witness_data = multisig_config.to_witness_data().encode_hex();
+
+    Ok((sender, mutli_sig_witness_data))
 }
