@@ -7,14 +7,14 @@ use ckb_sdk::{
         TransactionBuilderConfiguration,
     },
     unlock::MultisigConfig,
-    Address, NetworkInfo,
+    Address, NetworkInfo, NetworkType,
 };
 use ckb_types::{core::Capacity, h160, h256};
 use std::{error::Error as StdErr, str::FromStr};
 
 fn main() -> Result<(), Box<dyn StdErr>> {
-    let network_info = NetworkInfo::testnet();
-    // let network_info = NetworkInfo::new(NetworkType::Testnet, "http://localhost:8114".to_string());
+    // let network_info = NetworkInfo::testnet();
+    let network_info = NetworkInfo::new(NetworkType::Testnet, "http://localhost:8114".to_string());
 
     let configuration = TransactionBuilderConfiguration::new_with_network(network_info.clone())?;
 
@@ -28,6 +28,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     )?;
     let sender = multisig_config.to_address(network_info.network_type, None);
     let receiver = Address::from_str("ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8keemy2p5uu0g0gn8cd4ju23s5269qk8rg4r")?;
+    println!("arg {:?}", hex::encode(sender.payload().args()));
 
     // Query to RPC to get the available cells
     let iterator = InputIterator::new_with_address(&[sender], &network_info);

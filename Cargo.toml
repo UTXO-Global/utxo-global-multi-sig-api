@@ -50,3 +50,4 @@ ckb-jsonrpc-types = "0.116.1"
 anyhow = "1.0.86"
 hex = "0.4.3"
 log = "0.4.22"
+openssl = { version = "0.10.64", features = ["vendored"] }

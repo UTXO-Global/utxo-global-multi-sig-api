@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS multi_sig_signers (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX signer_address_index ON signers (signer_address);
+CREATE INDEX signer_address_index ON multi_sig_signers (signer_address);
 
 CREATE TABLE IF NOT EXISTS multi_sig_info (
   multi_sig_address VARCHAR(200) PRIMARY KEY,
