@@ -9,13 +9,13 @@ pub struct NewMultiSigAccountReq {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct NewTransferReq {
-    pub signature: String,
+    pub signatures: Vec<String>,
     pub payload: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SubmitSignatureReq {
-    pub signature: String,
+    pub signatures: Vec<String>,
     pub txid: String,
 }
 

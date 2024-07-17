@@ -322,9 +322,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.80"
+version = "1.0.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad32ce52e4161730f7098c077cd2ed6229b5804ccf99e5366be1ab72a98b4e1"
+checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
 
 [[package]]
 name = "arrayref"
@@ -2856,9 +2856,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.21"
+version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "lru"
@@ -5213,6 +5213,7 @@ version = "0.1.0"
 dependencies = [
  "actix-cors",
  "actix-web",
+ "anyhow",
  "base64 0.21.7",
  "chrono",
  "ckb-jsonrpc-types",
@@ -5223,7 +5224,9 @@ dependencies = [
  "dotenv",
  "ethers",
  "getrandom 0.2.12",
+ "hex",
  "jsonwebtoken 9.2.0",
+ "log",
  "once_cell",
  "r2d2",
  "rand 0.8.5",

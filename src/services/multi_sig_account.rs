@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::models::multi_sig_tx::CkbTransaction;
-use crate::repositories::ckb::{get_ckb_client, get_ckb_network};
+use crate::repositories::ckb::{add_signature_to_witness, get_ckb_client, get_ckb_network};
 use crate::{
     models::multi_sig_account::{MultiSigInfo, MultiSigSigner},
     repositories::multi_sig_account::MultiSigDao,
@@ -11,10 +11,11 @@ use ckb_sdk::constants::MULTISIG_TYPE_HASH;
 use ckb_sdk::AddressPayload;
 use ckb_sdk::{unlock::MultisigConfig, Address};
 use ckb_types::bytes::Bytes;
-use ckb_types::core::ScriptHashType;
+use ckb_types::core::{ScriptHashType, TransactionView};
 use ckb_types::packed::Transaction;
 use ckb_types::prelude::{IntoTransactionView, Pack};
 use ckb_types::H160;
+use ethers::utils::hex::ToHexExt;
 
 #[derive(Clone, Debug)]
 pub struct MultiSigSrv {
@@ -92,9 +93,10 @@ impl MultiSigSrv {
         })?;
 
         let sender = multisig_config.to_address(get_ckb_network(), None);
+        let mutli_sig_witness_data = multisig_config.to_witness_data().encode_hex();
 
         self.multi_sig_dao
-            .create_new_account(&sender.to_string(), &req)
+            .create_new_account(&sender.to_string(), &mutli_sig_witness_data, &req)
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
     }
@@ -149,10 +151,38 @@ impl MultiSigSrv {
         return Ok(());
     }
 
+    async fn sync_status_after_broadcast(
+        &self,
+        outpoints: Vec<String>,
+        txid: &String,
+        payload: &String,
+    ) -> Result<(), AppError> {
+        self.multi_sig_dao
+            .sync_status_after_broadcast(outpoints, txid, payload)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+        Ok(())
+    }
+
+    async fn broadcast_tx(
+        &self,
+        json_tx: ckb_jsonrpc_types::TransactionView,
+    ) -> Result<(), AppError> {
+        let client = get_ckb_client();
+        let result = client.send_transaction(json_tx.inner, None);
+
+        if let Err(err) = result {
+            log::error!(target: "multi_sig_service", "Submit tx failed: {err:?}");
+            return Err(AppError::new(500).cause(err).message("Submit tx failed"));
+        }
+
+        Ok(())
+    }
+
     pub async fn create_new_transfer(
         &self,
         signer_address: &String,
-        signature: &String,
+        signatures: &Vec<String>,
         payload: &String,
     ) -> Result<CkbTransaction, AppError> {
         let tx_info: ckb_jsonrpc_types::TransactionView = serde_json::from_str(payload.as_str())
@@ -161,7 +191,7 @@ impl MultiSigSrv {
                     .cause(err)
                     .message("invalid transaction json")
             })?;
-        let tx = Transaction::from(tx_info.inner).into_view();
+        let tx = Transaction::from(tx_info.clone().inner).into_view();
         let tx_id = tx.hash().to_string();
 
         let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
@@ -169,31 +199,40 @@ impl MultiSigSrv {
             .map(|outpoint| ckb_jsonrpc_types::OutPoint::from(outpoint))
             .collect();
 
+        // validate signatures match inputs length
+        if signatures.len().ne(&outpoints.len()) {
+            return Err(AppError::new(400).message("invalid signatures"));
+        }
+
         // validate outpoints status from CKB node
         let multi_sig_address = self.validate_outpoints(&outpoints)?;
 
         // Validate if user is one of multi-sig signers
         self.validate_signer(&signer_address, &multi_sig_address)
             .await?;
+        let multi_sig_info = self.request_multi_sig_info(&multi_sig_address).await?;
 
         let outpoints: Vec<String> = outpoints
             .into_iter()
             .map(|outpoint| format!("{}:{}", outpoint.tx_hash, outpoint.index.value()))
             .collect();
+
         let ckb_tx = self
             .multi_sig_dao
             .create_new_transfer(
                 &multi_sig_address.to_string(),
-                outpoints,
+                outpoints.clone(),
                 &tx_id,
                 payload,
                 signer_address,
-                signature,
+                signatures,
             )
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
-        // TODO: check if threshold is one => broadcast tx immediately
+        // check if threshold is one => broadcast tx immediately
+        self.check_threshold(&multi_sig_info, &tx, outpoints)
+            .await?;
 
         Ok(ckb_tx)
     }
@@ -210,10 +249,60 @@ impl MultiSigSrv {
         }
     }
 
+    async fn check_threshold(
+        &self,
+        multi_sig_info: &MultiSigInfo,
+        tx: &TransactionView,
+        outpoints: Vec<String>,
+    ) -> Result<(), AppError> {
+        let tx_id = tx.hash().to_string();
+
+        // check if threshold is reached => broadcast tx
+        let ckb_signatures = self
+            .multi_sig_dao
+            .get_list_signatures_by_txid(&tx_id)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+        if ckb_signatures
+            .len()
+            .eq(&(multi_sig_info.threshold as usize))
+        {
+            let signatures = ckb_signatures
+                .iter()
+                .map(|s| Bytes::from(s.signatures.clone()))
+                .collect();
+
+            // Add Signatures to witness
+            let tx = add_signature_to_witness(
+                multi_sig_info.threshold as usize,
+                &tx,
+                &multi_sig_info.mutli_sig_witness_data,
+                signatures,
+            )
+            .map_err(|err| {
+                AppError::new(500)
+                    .cause(err)
+                    .message("add signature to witness failed")
+            })?;
+
+            let json_tx = ckb_jsonrpc_types::TransactionView::from(tx);
+            self.broadcast_tx(json_tx.clone()).await?;
+
+            self.sync_status_after_broadcast(
+                outpoints,
+                &tx_id,
+                &serde_json::to_string_pretty(&json_tx).unwrap(),
+            )
+            .await?;
+        }
+
+        Ok(())
+    }
+
     pub async fn submit_signature(
         &self,
         signer_address: &String,
-        signature: &String,
+        signatures: &Vec<String>,
         txid: &String,
     ) -> Result<CkbTransaction, AppError> {
         let ckb_tx = self.get_tx_by_hash(txid).await?;
@@ -226,27 +315,45 @@ impl MultiSigSrv {
                     .cause(err)
                     .message("invalid transaction json")
             })?;
-        let tx = Transaction::from(tx_info.inner).into_view();
+        let tx = Transaction::from(tx_info.clone().inner).into_view();
         let tx_id = tx.hash().to_string();
 
         let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
             .input_pts_iter()
             .map(|outpoint| ckb_jsonrpc_types::OutPoint::from(outpoint))
             .collect();
+
+        // validate signatures match inputs length
+        if signatures.len().ne(&outpoints.len()) {
+            return Err(AppError::new(400).message("invalid signatures"));
+        }
+
         // validate outpoints status from CKB node
+        // it should be check threshold on cells instead of checking by tx
+        // currently all cells is belong to single multi-sig address so we able
+        // to use check threshold by txid
         let multi_sig_address = self.validate_outpoints(&outpoints)?;
 
         // Validate if user is one of multi-sig signers
         self.validate_signer(&signer_address, &multi_sig_address)
             .await?;
+        let multi_sig_info = self.request_multi_sig_info(&multi_sig_address).await?;
 
-        let ckb_tx = self
+        let ckb_tx: CkbTransaction = self
             .multi_sig_dao
-            .add_signature(&tx_id, &ckb_tx.payload, signer_address, signature)
+            .add_signature(&tx_id, &ckb_tx.payload, signer_address, signatures)
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
-        // TODO: check if threshold is reached => broadcast tx
+        // Update outpoints + txid
+        let outpoints: Vec<String> = outpoints
+            .into_iter()
+            .map(|outpoint| format!("{}:{}", outpoint.tx_hash, outpoint.index.value()))
+            .collect();
+
+        // Check threshold sig
+        self.check_threshold(&multi_sig_info, &tx, outpoints)
+            .await?;
 
         Ok(ckb_tx)
     }

@@ -9,7 +9,17 @@ three = []
 five = []
 
 [[bin]]
-name = "test"
+name = "test_address"
+test = false
+bench = false
+
+[[bin]]
+name = "test_multisign"
+test = false
+bench = false
+
+[[bin]]
+name = "test_flow"
 test = false
 bench = false
 
@@ -41,3 +51,6 @@ tokio-pg-mapper-derive = "0.2.0"
 ckb-sdk = "3.2.1"
 ckb-types = "0.116.1"
 ckb-jsonrpc-types = "0.116.1"
+anyhow = "1.0.86"
+hex = "0.4.3"
+log = "0.4.22"

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     models::{
         multi_sig_account::{MultiSigInfo, MultiSigSigner},
-        multi_sig_tx::CkbTransaction,
+        multi_sig_tx::{CkbSignature, CkbTransaction},
     },
     serialize::multi_sig_account::NewMultiSigAccountReq,
 };
@@ -111,11 +111,12 @@ impl MultiSigDao {
     pub async fn create_new_account(
         &self,
         multi_sig_address: &String,
+        mutli_sig_witness_data: &String,
         req: &NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, PoolError> {
         let client: Client = self.db.get().await?;
 
-        let _stmt = "INSERT INTO multi_sig_info (multi_sig_address, threshold, signers, name) VALUES ($1, $2, $3, $4);";
+        let _stmt = "INSERT INTO multi_sig_info (multi_sig_address, threshold, signers, name, mutli_sig_witness_data) VALUES ($1, $2, $3, $4, $5);";
         let stmt = client.prepare(&_stmt).await?;
 
         client
@@ -126,6 +127,7 @@ impl MultiSigDao {
                     &req.threshold,
                     &(req.signers.len() as i16),
                     &req.name,
+                    mutli_sig_witness_data,
                 ],
             )
             .await?;
@@ -134,6 +136,7 @@ impl MultiSigDao {
             threshold: req.threshold,
             signers: req.signers.len() as i16,
             name: req.name.clone(),
+            mutli_sig_witness_data: mutli_sig_witness_data.clone(),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
@@ -146,7 +149,7 @@ impl MultiSigDao {
         transaction_id: &String,
         payload: &String,
         signer_address: &String,
-        signature: &String,
+        signatures: &Vec<String>,
     ) -> Result<CkbTransaction, PoolError> {
         let mut client: Client = self.db.get().await?;
 
@@ -170,12 +173,15 @@ impl MultiSigDao {
                 .await?;
         }
 
-        // Add first signature - requester of this new transaction
+        // Add first signatures - requester of this new transaction
         let _stmt =
-            "INSERT INTO signatures (signer_address, transaction_id, signature) VALUES ($1, $2, $3);";
+            "INSERT INTO signatures (signer_address, transaction_id, signatures) VALUES ($1, $2, $3);";
         let stmt = db_transaction.prepare(&_stmt).await?;
         db_transaction
-            .execute(&stmt, &[signer_address, transaction_id, signature])
+            .execute(
+                &stmt,
+                &[signer_address, transaction_id, &signatures.join(",")],
+            )
             .await?;
 
         db_transaction.commit().await?;
@@ -209,16 +215,19 @@ impl MultiSigDao {
         transaction_id: &String,
         payload: &String,
         signer_address: &String,
-        signature: &String,
+        signatures: &Vec<String>,
     ) -> Result<CkbTransaction, PoolError> {
         let client: Client = self.db.get().await?;
 
         // Add signature
         let _stmt =
-            "INSERT INTO signatures (signer_address, transaction_id, signature) VALUES ($1, $2, $3);";
+            "INSERT INTO signatures (signer_address, transaction_id, signatures) VALUES ($1, $2, $3);";
         let stmt = client.prepare(&_stmt).await?;
         client
-            .execute(&stmt, &[signer_address, transaction_id, signature])
+            .execute(
+                &stmt,
+                &[signer_address, transaction_id, &signatures.join(",")],
+            )
             .await?;
 
         Ok(CkbTransaction {
@@ -249,6 +258,63 @@ impl MultiSigDao {
         Ok(match row {
             Some(row) => Some(MultiSigSigner::from_row_ref(&row).unwrap()),
             None => None,
+        })
+    }
+
+    pub async fn get_list_signatures_by_txid(
+        &self,
+        txid: &String,
+    ) -> Result<Vec<CkbSignature>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT * FROM signatures 
+            WHERE transaction_id=$1;";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let signatures = client
+            .query(&stmt, &[&txid])
+            .await?
+            .iter()
+            .map(|row| CkbSignature::from_row_ref(&row).unwrap())
+            .collect::<Vec<CkbSignature>>();
+
+        Ok(signatures)
+    }
+
+    pub async fn sync_status_after_broadcast(
+        &self,
+        outpoints: Vec<String>,
+        transaction_id: &String,
+        payload: &String,
+    ) -> Result<CkbTransaction, PoolError> {
+        let mut client: Client = self.db.get().await?;
+
+        let db_transaction = client.transaction().await?;
+
+        // Update tx
+        let _stmt = "UPDATE transactions SET status = 1, payload = $2  WHERE transaction_id = $1;";
+        let stmt = db_transaction.prepare(&_stmt).await?;
+        db_transaction
+            .execute(&stmt, &[transaction_id, payload])
+            .await?;
+
+        // Update cells from tx info
+        for outpoint in outpoints {
+            let _stmt = "UPDATE cells SET status = 1 WHERE outpoint = $1 AND transaction_id = $2;";
+            let stmt = db_transaction.prepare(&_stmt).await?;
+            db_transaction
+                .execute(&stmt, &[&outpoint, transaction_id])
+                .await?;
+        }
+
+        db_transaction.commit().await?;
+
+        Ok(CkbTransaction {
+            transaction_id: transaction_id.clone(),
+            payload: payload.clone(),
+            status: 1,
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
         })
     }
 }
