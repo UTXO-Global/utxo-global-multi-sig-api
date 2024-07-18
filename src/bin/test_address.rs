@@ -6,7 +6,7 @@ fn main() {
     // New:        ckb1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqwdvtqqky3n3ntlmdqmv8ectytr6sr90vs9a9rmn
     // Deprecated: ckb1qyq9hss45s4yc2crmdk06fwwcuewe3dm4hhqr4ws7y
 
-    // Full
+    // Full - (2021 -> Now)
     let arg = h160!("0xcd62c00b12338cd7fdb41b61f3859163d40657b2");
 
     let payload = AddressPayload::new_full(
@@ -17,7 +17,7 @@ fn main() {
     let address = Address::new(NetworkType::Testnet, payload, true);
     println!("address full {}", address);
 
-    // Short
+    // Short - (Before - 2021)
     let payload = AddressPayload::new_short(CodeHashIndex::Multisig, arg);
     let address = Address::new(NetworkType::Testnet, payload, true);
     println!("address short {}", address);

@@ -1,13 +1,16 @@
+use std::str::FromStr;
+
 use chrono::Utc;
+use ckb_crypto::secp::{Message, Signature};
+use ckb_sdk::{Address, AddressPayload};
 use crypto::{digest::Digest, sha3::Sha3};
-use ethers::{prelude::*, utils::hex};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use uuid::Uuid;
 
 use crate::{
     config,
     models::user::User,
-    repositories::user::UserDao,
+    repositories::{ckb::get_ckb_network, user::UserDao},
     serialize::{
         error::AppError,
         user::{LoginReq, LoginRes, UserRequestNonceRes},
@@ -88,12 +91,25 @@ impl UserSrv {
                 // let message_hash = ethers::utils::keccak256(message.clone().as_bytes());
 
                 let sig_bytes = hex::decode(&signature[2..]).expect("Failed to decode signature");
-                let sig =
-                    Signature::try_from(sig_bytes.as_slice()).expect("Failed to parse signature");
+                let sig = Signature::from_slice(sig_bytes.as_slice()).map_err(|err| {
+                    AppError::new(401)
+                        .cause(err)
+                        .message("Failed to parse signature")
+                })?;
 
-                match sig.recover(message_hash) {
-                    Ok(recovered) => {
-                        if recovered == req.address.parse::<Address>().unwrap() {
+                match sig.recover(&Message::from_slice(message_hash.as_slice()).unwrap()) {
+                    Ok(recovered_pubkey) => {
+                        let address = Address::from_str(&req.address.to_string()).unwrap();
+                        let recovered_address = Address::new(
+                            get_ckb_network(),
+                            AddressPayload::from_pubkey(
+                                &secp256k1::PublicKey::from_slice(recovered_pubkey.as_bytes())
+                                    .unwrap(),
+                            ),
+                            true,
+                        );
+
+                        if recovered_address.eq(&address) {
                             Ok(user.clone())
                         } else {
                             Err(AppError::new(500).message("Signature not matched"))
