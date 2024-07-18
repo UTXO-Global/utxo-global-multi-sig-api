@@ -7,7 +7,9 @@ use crate::{
     },
     services::multi_sig_account::MultiSigSrv,
 };
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
+
+use super::jwt::JwtMiddleware;
 
 async fn request_multi_sig_info(
     address: web::Path<String>,
@@ -70,9 +72,12 @@ async fn create_new_account(
 async fn create_new_transfer(
     multi_sig_srv: web::Data<MultiSigSrv>,
     req: web::Json<NewTransferReq>,
+    http_req: HttpRequest,
+    _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    // TODO: get user address from credential authentication
-    let user_address = "".to_string();
+    let ext = http_req.extensions();
+    let user_address = ext.get::<String>().unwrap();
+
     match multi_sig_srv
         .create_new_transfer(&user_address, &req.signature, &req.payload)
         .await
@@ -85,9 +90,12 @@ async fn create_new_transfer(
 async fn submit_signature(
     multi_sig_srv: web::Data<MultiSigSrv>,
     req: web::Json<SubmitSignatureReq>,
+    http_req: HttpRequest,
+    _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    // TODO: get user address from credential authentication
-    let user_address = "".to_string();
+    let ext = http_req.extensions();
+    let user_address = ext.get::<String>().unwrap();
+
     match multi_sig_srv
         .submit_signature(&user_address, &req.signature, &req.txid)
         .await

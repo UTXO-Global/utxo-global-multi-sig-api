@@ -12,7 +12,6 @@ use ckb_sdk::{
 use ckb_types::{
     bytes::Bytes, core::Capacity, h160, h256, packed::Transaction, prelude::IntoTransactionView,
 };
-use ethers::utils::hex::ToHexExt;
 use std::{error::Error as StdErr, str::FromStr};
 use utxo_global_multi_sig_api::repositories::ckb::{add_signature_to_witness, get_multisig_config};
 
@@ -64,7 +63,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
 
     assert_eq!(sender, multi_sig_address);
     assert_eq!(
-        multisig_config.to_witness_data().encode_hex(),
+        hex::encode(multisig_config.to_witness_data()),
         multi_sig_witness_data
     );
 

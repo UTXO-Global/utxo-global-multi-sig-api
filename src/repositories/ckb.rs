@@ -12,7 +12,6 @@ use ckb_types::packed::WitnessArgs;
 use ckb_types::prelude::Builder;
 use ckb_types::prelude::{Entity, Pack};
 use ckb_types::H160;
-use ethers::utils::hex::ToHexExt;
 
 pub fn get_ckb_client() -> CkbRpcClient {
     let rpc_url: String = config::get("ckb_rpc");
@@ -113,7 +112,7 @@ pub fn get_multisig_config(
         })?;
 
     let sender = multisig_config.to_address(get_ckb_network(), None);
-    let mutli_sig_witness_data = multisig_config.to_witness_data().encode_hex();
+    let mutli_sig_witness_data = hex::encode(multisig_config.to_witness_data());
 
     Ok((sender, mutli_sig_witness_data))
 }

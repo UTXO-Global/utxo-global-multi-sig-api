@@ -26,7 +26,6 @@ actix-web = "4.5.1"
 base64 = "0.21.7"
 chrono = { version = "0.4.31", features = ["serde"] }
 dotenv = "0.15.0"
-ethers = { version = "2.0.13" }
 tokio = { version = "1", features = ["full"] }
 r2d2 = "0.8.10"
 rand = "0.8.5"
@@ -51,3 +50,4 @@ anyhow = "1.0.86"
 hex = "0.4.3"
 log = "0.4.22"
 openssl = { version = "0.10.64", features = ["vendored"] }
+rust-crypto = "0.2.36"

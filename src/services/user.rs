@@ -1,4 +1,5 @@
 use chrono::Utc;
+use crypto::{digest::Digest, sha3::Sha3};
 use ethers::{prelude::*, utils::hex};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use uuid::Uuid;
@@ -77,8 +78,14 @@ impl UserSrv {
                 let _ = self.update_user_nonce(user.clone());
 
                 let signature = req.signature;
-                let message = format!("\x19Ethereum Signed Message:\n{}{}", nonce.len(), nonce);
-                let message_hash = ethers::utils::keccak256(message.clone().as_bytes());
+                let message = format!("utxo.global login {}", nonce);
+
+                let mut hasher = Sha3::keccak256();
+                hasher.input(message.clone().as_bytes());
+                let mut message_hash: [u8; 32] = [0; 32];
+                hasher.result(&mut message_hash);
+
+                // let message_hash = ethers::utils::keccak256(message.clone().as_bytes());
 
                 let sig_bytes = hex::decode(&signature[2..]).expect("Failed to decode signature");
                 let sig =
