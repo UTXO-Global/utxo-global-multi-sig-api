@@ -573,7 +573,7 @@ dependencies = [
  "ckb-crypto",
  "ckb-dao-utils",
  "ckb-error",
- "ckb-hash",
+ "ckb-hash 0.116.1",
  "ckb-jsonrpc-types",
  "ckb-logger",
  "ckb-pow",
@@ -680,7 +680,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "ckb-error",
  "ckb-fixed-hash",
- "ckb-hash",
+ "ckb-hash 0.116.1",
  "ckb-occupied-capacity",
  "molecule",
  "numext-fixed-uint",
@@ -691,6 +691,16 @@ name = "ckb-hash"
 version = "0.116.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5754bc49cf76a7e8829fe6a7cf1eea1284cbca9777b521f072c76d6ae28d303"
+dependencies = [
+ "blake2b-ref",
+ "blake2b-rs",
+]
+
+[[package]]
+name = "ckb-hash"
+version = "0.117.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5231fff400578e6a6d9c9758138a6cfb190d1acbd28f1b5d40e7fcb13f133e9a"
 dependencies = [
  "blake2b-ref",
  "blake2b-rs",
@@ -776,7 +786,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb981de6e56107cd3e1660a9105bb07891277b21604946f70bf5097dd03690f7"
 dependencies = [
  "byteorder",
- "ckb-hash",
+ "ckb-hash 0.116.1",
  "ckb-types",
  "eaglesong",
  "log",
@@ -817,7 +827,7 @@ dependencies = [
  "byteorder",
  "ckb-chain-spec",
  "ckb-error",
- "ckb-hash",
+ "ckb-hash 0.116.1",
  "ckb-logger",
  "ckb-traits",
  "ckb-types",
@@ -839,7 +849,7 @@ dependencies = [
  "ckb-chain-spec",
  "ckb-crypto",
  "ckb-dao-utils",
- "ckb-hash",
+ "ckb-hash 0.116.1",
  "ckb-jsonrpc-types",
  "ckb-mock-tx-types",
  "ckb-resource",
@@ -903,7 +913,7 @@ dependencies = [
  "ckb-error",
  "ckb-fixed-hash",
  "ckb-gen-types",
- "ckb-hash",
+ "ckb-hash 0.116.1",
  "ckb-merkle-mountain-range",
  "ckb-occupied-capacity",
  "ckb-rational",
@@ -3566,6 +3576,7 @@ dependencies = [
  "base64",
  "chrono",
  "ckb-crypto",
+ "ckb-hash 0.117.0",
  "ckb-jsonrpc-types",
  "ckb-sdk",
  "ckb-types",
