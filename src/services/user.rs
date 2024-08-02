@@ -92,7 +92,7 @@ impl UserSrv {
                 let nonce = user.nonce.clone().unwrap();
 
                 // Update a new nonce for user
-                // let _ = self.update_user_nonce(user.clone());
+                let _ = self.update_user_nonce(user.clone());
 
                 let signature = req.signature;
                 let message = format!("Nervos Message:utxo.global login {}", nonce);
