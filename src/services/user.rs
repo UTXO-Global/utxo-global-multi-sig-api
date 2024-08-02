@@ -1,10 +1,14 @@
 use std::str::FromStr;
 
 use chrono::Utc;
-use ckb_crypto::secp::{Message, Signature};
+
+use ckb_hash::{Blake2bBuilder, CKB_HASH_PERSONALIZATION};
 use ckb_sdk::{Address, AddressPayload};
-use crypto::{digest::Digest, sha3::Sha3};
 use jsonwebtoken::{encode, EncodingKey, Header};
+use secp256k1::{
+    ecdsa::{RecoverableSignature, RecoveryId},
+    Message, PublicKey, Secp256k1,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -28,6 +32,16 @@ impl UserSrv {
         UserSrv {
             user_dao: user_dao.clone(),
         }
+    }
+
+    fn hash_ckb(&self, message: &[u8]) -> [u8; 32] {
+        let mut hasher = Blake2bBuilder::new(32)
+            .personal(CKB_HASH_PERSONALIZATION)
+            .build();
+        hasher.update(message);
+        let mut result = [0; 32];
+        hasher.finalize(&mut result);
+        result
     }
 
     pub async fn get_nonce(&self, address: &String) -> Result<UserRequestNonceRes, AppError> {
@@ -78,44 +92,45 @@ impl UserSrv {
                 let nonce = user.nonce.clone().unwrap();
 
                 // Update a new nonce for user
-                let _ = self.update_user_nonce(user.clone());
+                // let _ = self.update_user_nonce(user.clone());
 
                 let signature = req.signature;
-                let message = format!("utxo.global login {}", nonce);
+                let message = format!("Nervos Message:utxo.global login {}", nonce);
+                let message_hash = self.hash_ckb(message.as_bytes());
+                let secp_message =
+                    Message::from_slice(&message_hash).expect("Invalid message hash");
 
-                let mut hasher = Sha3::keccak256();
-                hasher.input(message.clone().as_bytes());
-                let mut message_hash: [u8; 32] = [0; 32];
-                hasher.result(&mut message_hash);
+                let sig_bytes = hex::decode(&signature).expect("Invalid signature hex");
+                let r = &sig_bytes[0..32];
+                let s = &sig_bytes[32..64];
+                let rec_id = sig_bytes[64]; // Recovery ID as byte
+                let rec_id = RecoveryId::from_i32(rec_id as i32).expect("Invalid recovery ID");
+                let mut ret: [u8; 64] = [0; 64];
+                ret[..32].copy_from_slice(r);
+                ret[32..].copy_from_slice(s);
 
-                // let message_hash = ethers::utils::keccak256(message.clone().as_bytes());
+                let rec_sig = RecoverableSignature::from_compact(&ret, rec_id)
+                    .expect("Invalid recoverable signature");
 
-                let sig_bytes = hex::decode(&signature[2..]).expect("Failed to decode signature");
-                let sig = Signature::from_slice(sig_bytes.as_slice()).map_err(|err| {
-                    AppError::new(401)
-                        .cause(err)
-                        .message("Failed to parse signature")
-                })?;
+                let secp = Secp256k1::new();
+                let pub_key = secp
+                    .recover_ecdsa(&secp_message, &rec_sig)
+                    .expect("Failed to recover public key");
 
-                match sig.recover(&Message::from_slice(message_hash.as_slice()).unwrap()) {
-                    Ok(recovered_pubkey) => {
-                        let address = Address::from_str(&req.address.to_string()).unwrap();
-                        let recovered_address = Address::new(
-                            get_ckb_network(),
-                            AddressPayload::from_pubkey(
-                                &secp256k1::PublicKey::from_slice(recovered_pubkey.as_bytes())
-                                    .unwrap(),
-                            ),
-                            true,
-                        );
+                let pub_key_bytes = pub_key.serialize();
+                let expected_pubkey =
+                    PublicKey::from_slice(&pub_key_bytes).expect("Invalid public key");
+                let address = Address::from_str(&req.address).unwrap();
+                let recovered_address = Address::new(
+                    get_ckb_network(),
+                    AddressPayload::from_pubkey(&expected_pubkey),
+                    true,
+                );
 
-                        if recovered_address.eq(&address) {
-                            Ok(user.clone())
-                        } else {
-                            Err(AppError::new(500).message("Signature not matched"))
-                        }
-                    }
-                    Err(err) => Err(AppError::new(500).message(&err.to_string())),
+                if recovered_address.to_string() == address.to_string() {
+                    Ok(user.clone())
+                } else {
+                    Err(AppError::new(500).message("Signature not matched"))
                 }
             }
             None => Err(AppError::new(404).message("no user found")),
