@@ -4,8 +4,6 @@ CREATE TABLE IF NOT EXISTS multi_sig_signers (
   id SERIAL PRIMARY KEY,
   multi_sig_address VARCHAR(200),
   signer_address VARCHAR(200) NOT NULL,
-  signer_name VARCHAR(255),
-  status SMALLINT DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

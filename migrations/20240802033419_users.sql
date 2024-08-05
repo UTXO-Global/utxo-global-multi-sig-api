@@ -6,4 +6,3 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX user_address_index ON users (user_address);

@@ -1,5 +1,5 @@
 use crate::{
-    models::multi_sig_account::MultiSigSingerStatus,
+    models::multi_sig_invite::MultiSigInviteStatus,
     serialize::{
         error::AppError,
         multi_sig_account::{
@@ -57,9 +57,9 @@ async fn request_accept_invite(
     let req = &InviteStatusReq {
         address: ext.get::<String>().unwrap().to_string(),
         multisig_address: multisig_address.to_string(),
-        status: MultiSigSingerStatus::ACCEPTED as i16,
+        status: MultiSigInviteStatus::ACCEPTED as i16,
     };
-    match multi_sig_srv.update_signer_status(&req.clone()).await {
+    match multi_sig_srv.update_invite_status(req.clone()).await {
         Ok(res) => Ok(HttpResponse::Ok().json(json!({"result": res}))),
         Err(err) => Err(err),
     }
@@ -75,10 +75,10 @@ async fn request_reject_invite(
     let req = &InviteStatusReq {
         address: ext.get::<String>().unwrap().to_string(),
         multisig_address: multisig_address.to_string(),
-        status: MultiSigSingerStatus::REJECTED as i16,
+        status: MultiSigInviteStatus::REJECTED as i16,
     };
 
-    match multi_sig_srv.update_signer_status(&req.clone()).await {
+    match multi_sig_srv.update_invite_status(req.clone()).await {
         Ok(res) => Ok(HttpResponse::Ok().json(json!({"result": res}))),
         Err(err) => Err(err),
     }
