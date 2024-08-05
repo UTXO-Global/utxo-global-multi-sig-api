@@ -372,6 +372,28 @@ impl MultiSigDao {
         Ok(invites)
     }
 
+    pub async fn get_invites_by_multisig(
+        &self,
+        address: &String,
+    ) -> Result<Vec<MultiSigInvite>, PoolError> {
+        let client: Client = self.db.get().await?;
+        let _stmt = "
+            SELECT *
+            FROM multi_sig_invites
+            WHERE multi_sig_address=$1
+        ";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let invites: Vec<MultiSigInvite> = client
+            .query(&stmt, &[&address])
+            .await?
+            .iter()
+            .map(|row| MultiSigInvite::from_row_ref(&row).unwrap())
+            .collect::<Vec<MultiSigInvite>>();
+
+        Ok(invites)
+    }
+
     pub async fn get_invite(
         &self,
         address: &String,

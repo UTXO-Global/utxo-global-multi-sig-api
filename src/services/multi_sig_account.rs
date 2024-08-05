@@ -5,7 +5,7 @@ use crate::repositories::ckb::{
     add_signature_to_witness, get_ckb_client, get_ckb_network, get_multisig_config,
 };
 use crate::repositories::db::DB_POOL;
-use crate::serialize::multi_sig_account::{InviteInfo, InviteStatusReq};
+use crate::serialize::multi_sig_account::{InviteInfo, InviteStatusReq, ListSignerRes};
 use crate::{
     models::multi_sig_account::{MultiSigInfo, MultiSigSigner},
     repositories::multi_sig_account::MultiSigDao,
@@ -45,14 +45,31 @@ impl MultiSigSrv {
         }
     }
 
-    pub async fn request_list_signers(
-        &self,
-        address: &String,
-    ) -> Result<Vec<MultiSigSigner>, AppError> {
-        self.multi_sig_dao
+    pub async fn request_list_signers(&self, address: &String) -> Result<ListSignerRes, AppError> {
+        let mut result = ListSignerRes {
+            signers: [].to_vec(),
+            invites: [].to_vec(),
+        };
+
+        match self
+            .multi_sig_dao
             .request_list_signers(&address.clone())
             .await
-            .map_err(|err| AppError::new(500).message(&err.to_string()))
+        {
+            Ok(signers) => result.signers = signers,
+            Err(err) => return Err(AppError::new(500).message(&err.to_string())),
+        }
+
+        match self
+            .multi_sig_dao
+            .get_invites_by_multisig(&address.clone())
+            .await
+        {
+            Ok(invites) => result.invites = invites,
+            Err(err) => return Err(AppError::new(500).message(&err.to_string())),
+        }
+
+        Ok(result)
     }
 
     pub async fn request_list_accounts(
