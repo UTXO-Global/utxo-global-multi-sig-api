@@ -1,5 +1,6 @@
 use crate::models::address_book::AddressBook;
 use crate::repositories::address_book::AddressBookDao;
+use crate::serialize::address_book::AddressBookReq;
 use crate::serialize::error::AppError;
 
 #[derive(Clone, Debug)]
@@ -19,5 +20,61 @@ impl AddressBookSrv {
             .get_address_books(&address.clone())
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
+    }
+
+    pub async fn update_address(
+        &self,
+        user_address: &String,
+        req: AddressBookReq,
+    ) -> Result<AddressBook, AppError> {
+        let address_book = self
+            .address_book_dao
+            .get_address(user_address, &req.clone().signer_address)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+
+        if address_book.is_none() {
+            return Err(AppError::new(500).message(&"Address not found.".to_string()));
+        }
+
+        let mut info = address_book.unwrap();
+
+        match self
+            .address_book_dao
+            .update_address(user_address, req.clone())
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?
+        {
+            true => {
+                info.signer_name = req.clone().signer_name;
+                Ok(info)
+            }
+            false => return Err(AppError::new(500).message(&"Update address failed".to_string())),
+        }
+    }
+
+    pub async fn add_address(
+        &self,
+        user_address: &String,
+        req: AddressBookReq,
+    ) -> Result<AddressBook, AppError> {
+        let address_book = self
+            .address_book_dao
+            .get_address(user_address, &req.clone().signer_address)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+
+        if !address_book.is_none() {
+            return Ok(address_book.unwrap());
+        }
+
+        match self
+            .address_book_dao
+            .add_address(user_address, &req.signer_address, &req.signer_name)
+            .await
+        {
+            Ok(res) => Ok(res),
+            Err(err) => Err(AppError::new(500).message(&err.to_string())),
+        }
     }
 }

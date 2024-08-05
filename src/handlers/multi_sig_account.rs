@@ -3,8 +3,8 @@ use crate::{
     serialize::{
         error::AppError,
         multi_sig_account::{
-            InviteStatusReq, NewMultiSigAccountReq, NewTransferReq, SubmitSignatureReq,
-            TransactionFilters,
+            InviteStatusReq, MultiSigAccountUpdateReq, NewMultiSigAccountReq, NewTransferReq,
+            SubmitSignatureReq, TransactionFilters,
         },
     },
     services::multi_sig_account::MultiSigSrv,
@@ -132,6 +132,24 @@ async fn create_new_account(
     }
 }
 
+async fn request_update_account(
+    multi_sig_srv: web::Data<MultiSigSrv>,
+    req: web::Json<MultiSigAccountUpdateReq>,
+    http_req: HttpRequest,
+    _: JwtMiddleware,
+) -> Result<HttpResponse, AppError> {
+    let ext = http_req.extensions();
+    let user_address = ext.get::<String>().unwrap().to_string();
+
+    match multi_sig_srv
+        .update_account(&user_address, req.clone())
+        .await
+    {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
+    }
+}
+
 async fn create_new_transfer(
     multi_sig_srv: web::Data<MultiSigSrv>,
     req: web::Json<NewTransferReq>,
@@ -183,6 +201,7 @@ pub fn route(conf: &mut web::ServiceConfig) {
                 web::put().to(request_reject_invite),
             )
             .route("/accounts", web::get().to(request_list_accounts))
+            .route("/accounts", web::put().to(request_update_account))
             .route(
                 "/transactions/{address}",
                 web::get().to(request_list_transactions),
