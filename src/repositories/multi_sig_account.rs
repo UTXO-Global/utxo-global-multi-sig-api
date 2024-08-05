@@ -152,7 +152,7 @@ impl MultiSigDao {
             .await?;
         Ok(MultiSigSigner {
             multi_sig_address: multi_sig_address.clone(),
-            name: name.to_string(),
+            signer_name: name.to_string(),
             signer_address: address.to_string(),
             status: status,
             created_at: Utc::now().naive_utc(),
