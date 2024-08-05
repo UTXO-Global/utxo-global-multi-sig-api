@@ -1,7 +1,11 @@
+use crate::models::multi_sig_invite::MultiSigInviteStatus;
 use crate::models::multi_sig_tx::CkbTransaction;
+use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
     add_signature_to_witness, get_ckb_client, get_ckb_network, get_multisig_config,
 };
+use crate::repositories::db::DB_POOL;
+use crate::serialize::multi_sig_account::{InviteInfo, InviteStatusReq};
 use crate::{
     models::multi_sig_account::{MultiSigInfo, MultiSigSigner},
     repositories::multi_sig_account::MultiSigDao,
@@ -18,12 +22,14 @@ use ckb_types::prelude::{IntoTransactionView, Pack};
 #[derive(Clone, Debug)]
 pub struct MultiSigSrv {
     multi_sig_dao: MultiSigDao,
+    address_book_dao: AddressBookDao,
 }
 
 impl MultiSigSrv {
-    pub fn new(multi_sig_dao: MultiSigDao) -> Self {
+    pub fn new(multi_sig_dao: MultiSigDao, address_book_dao: AddressBookDao) -> Self {
         MultiSigSrv {
             multi_sig_dao: multi_sig_dao.clone(),
+            address_book_dao: address_book_dao.clone(),
         }
     }
 
@@ -73,15 +79,107 @@ impl MultiSigSrv {
 
     pub async fn create_new_account(
         &self,
+        user_address: &String,
         req: NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, AppError> {
         let (sender, mutli_sig_witness_data) =
             get_multisig_config(req.signers.clone(), req.threshold as u8)?;
 
-        self.multi_sig_dao
-            .create_new_account(&sender.to_string(), &mutli_sig_witness_data, &req)
+        let mut client = DB_POOL.clone().get().await.unwrap();
+        let transaction = client.transaction().await.unwrap();
+        let account_info: MultiSigInfo;
+        match self
+            .multi_sig_dao
+            .create_new_account(
+                &transaction,
+                &sender.to_string(),
+                &mutli_sig_witness_data,
+                &req,
+            )
             .await
-            .map_err(|err| AppError::new(500).message(&err.to_string()))
+        {
+            Ok(a) => {
+                account_info = a;
+            }
+            Err(err) => {
+                transaction.rollback().await.unwrap();
+                return Err(AppError::new(500).message(&err.to_string()));
+            }
+        }
+
+        for signer in &req.signers {
+            match self
+                .multi_sig_dao
+                .get_signer(&signer.address, &account_info.multi_sig_address)
+                .await
+            {
+                Ok(_signer) => {
+                    if !_signer.is_none() {
+                        continue;
+                    }
+                }
+
+                Err(err) => {
+                    return Err(AppError::new(500).message(&err.to_string()));
+                }
+            }
+
+            if signer.address.eq(user_address) {
+                match self
+                    .multi_sig_dao
+                    .add_new_signer(
+                        &transaction,
+                        &account_info.multi_sig_address,
+                        &signer.address,
+                    )
+                    .await
+                {
+                    Ok(_) => continue,
+                    Err(err) => {
+                        transaction.rollback().await.unwrap();
+                        return Err(AppError::new(500).message(&err.to_string()));
+                    }
+                }
+            }
+
+            // Check and add address book
+            match self
+                .address_book_dao
+                .get_address(user_address, &signer.address)
+                .await
+            {
+                Ok(address_book) => {
+                    if address_book.is_none() {
+                        let _ = self
+                            .address_book_dao
+                            .add_address(user_address, &signer.address, &signer.name)
+                            .await;
+                    }
+                }
+                Err(_) => (),
+            }
+
+            // Add to invite
+            match self
+                .multi_sig_dao
+                .add_new_invite(
+                    &transaction,
+                    &account_info.multi_sig_address,
+                    &signer.address,
+                    MultiSigInviteStatus::PENDING as i16,
+                )
+                .await
+            {
+                Ok(_) => continue,
+                Err(err) => {
+                    transaction.rollback().await.unwrap();
+                    return Err(AppError::new(500).message(&err.to_string()));
+                }
+            }
+        }
+
+        transaction.commit().await.unwrap();
+        Ok(account_info)
     }
 
     fn validate_outpoints(
@@ -328,5 +426,97 @@ impl MultiSigSrv {
             .await?;
 
         Ok(ckb_tx)
+    }
+
+    pub async fn get_invites_list(&self, address: &String) -> Result<Vec<InviteInfo>, AppError> {
+        let accounts = self
+            .multi_sig_dao
+            .get_invites_list(&address.clone())
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()));
+
+        let mut invites: Vec<InviteInfo> = Vec::new();
+
+        for acc in accounts.unwrap() {
+            invites.push(InviteInfo {
+                address: address.to_string(),
+                multisig_address: acc.multi_sig_address,
+                account_name: acc.name,
+            })
+        }
+
+        Ok(invites)
+    }
+
+    pub async fn update_invite_status(&self, req: InviteStatusReq) -> Result<bool, AppError> {
+        let signer_result = self
+            .multi_sig_dao
+            .get_signer(&req.address, &req.multisig_address)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()));
+
+        let signer = signer_result.unwrap();
+        if !signer.clone().is_none() {
+            return Err(AppError::new(500).message("Signer has accepted"));
+        }
+
+        let invite_res = self
+            .multi_sig_dao
+            .get_invite(&req.address, &req.multisig_address)
+            .await;
+
+        let invite = invite_res.unwrap();
+        if invite.clone().is_none() {
+            return Err(AppError::new(500).message("Invite not found"));
+        }
+
+        let status = invite.unwrap().status;
+        if status == MultiSigInviteStatus::ACCEPTED as i16
+            || status == MultiSigInviteStatus::REJECTED as i16
+        {
+            return Err(AppError::new(500).message("Status has been updated"));
+        }
+
+        let mut client = DB_POOL.clone().get().await.unwrap();
+        let transaction: deadpool_postgres::Transaction = client.transaction().await.unwrap();
+
+        match self
+            .multi_sig_dao
+            .update_invite_status(
+                &transaction,
+                req.status,
+                &req.address,
+                &req.multisig_address,
+            )
+            .await
+        {
+            Ok(is_ok) => {
+                if is_ok && req.status == MultiSigInviteStatus::ACCEPTED as i16 {
+                    match self
+                        .multi_sig_dao
+                        .add_new_signer(&transaction, &req.multisig_address, &req.address)
+                        .await
+                    {
+                        Ok(_) => (),
+                        Err(err) => {
+                            transaction.rollback().await.unwrap();
+                            return Err(AppError::new(500).message(&err.to_string()));
+                        }
+                    }
+                }
+
+                if is_ok {
+                    transaction.commit().await.unwrap();
+                    return Ok(true);
+                }
+
+                transaction.rollback().await.unwrap();
+                return Err(AppError::new(500).message(&"Update invite failed".to_string()));
+            }
+            Err(err) => {
+                transaction.rollback().await.unwrap();
+                return Err(AppError::new(500).message(&err.to_string()));
+            }
+        }
     }
 }

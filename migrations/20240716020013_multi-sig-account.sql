@@ -1,7 +1,8 @@
 -- Add migration script here
 
 CREATE TABLE IF NOT EXISTS multi_sig_signers (
-  multi_sig_address VARCHAR(200) PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
+  multi_sig_address VARCHAR(200),
   signer_address VARCHAR(200) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()

@@ -7,7 +7,7 @@ use ckb_sdk::{
         TransactionBuilderConfiguration,
     },
     unlock::MultisigConfig,
-    Address, NetworkInfo, NetworkType,
+    Address, NetworkInfo,
 };
 use ckb_types::{core::Capacity, h160, h256};
 use std::{error::Error as StdErr, str::FromStr};

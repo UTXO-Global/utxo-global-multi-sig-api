@@ -3,12 +3,13 @@ use std::sync::Arc;
 use crate::{
     models::{
         multi_sig_account::{MultiSigInfo, MultiSigSigner},
+        multi_sig_invite::MultiSigInvite,
         multi_sig_tx::{CkbSignature, CkbTransaction},
     },
     serialize::multi_sig_account::NewMultiSigAccountReq,
 };
 use chrono::Utc;
-use deadpool_postgres::{Client, Pool, PoolError};
+use deadpool_postgres::{Client, Pool, PoolError, Transaction};
 use tokio_pg_mapper::FromTokioPostgresRow;
 
 #[derive(Clone, Debug)]
@@ -57,6 +58,45 @@ impl MultiSigDao {
             .collect::<Vec<MultiSigSigner>>();
 
         Ok(signers)
+    }
+
+    pub async fn get_signer(
+        &self,
+        address: &String,
+        multisig_address: &String,
+    ) -> Result<Option<MultiSigSigner>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT * FROM multi_sig_signers 
+            WHERE multi_sig_address=$1 and signer_address = $2;";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let row = client
+            .query(&stmt, &[&multisig_address, &address])
+            .await?
+            .pop();
+
+        Ok(match row {
+            Some(row) => Some(MultiSigSigner::from_row_ref(&row).unwrap()),
+            None => None,
+        })
+    }
+
+    pub async fn add_new_signer(
+        &self,
+        tx: &Transaction<'_>,
+        multi_sig_address: &String,
+        address: &String,
+    ) -> Result<MultiSigSigner, PoolError> {
+        let stmt: &str =
+            "INSERT INTO multi_sig_signers (multi_sig_address, signer_address) VALUES ($1, $2);";
+        tx.execute(stmt, &[multi_sig_address, address]).await?;
+        Ok(MultiSigSigner {
+            multi_sig_address: multi_sig_address.clone(),
+            signer_address: address.to_string(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        })
     }
 
     pub async fn request_list_accounts(
@@ -110,27 +150,24 @@ impl MultiSigDao {
 
     pub async fn create_new_account(
         &self,
+        tx: &Transaction<'_>,
         multi_sig_address: &String,
         mutli_sig_witness_data: &String,
         req: &NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, PoolError> {
-        let client: Client = self.db.get().await?;
+        let stmt: &str = "INSERT INTO multi_sig_info (multi_sig_address, threshold, signers, name, mutli_sig_witness_data) VALUES ($1, $2, $3, $4, $5);";
 
-        let _stmt = "INSERT INTO multi_sig_info (multi_sig_address, threshold, signers, name, mutli_sig_witness_data) VALUES ($1, $2, $3, $4, $5);";
-        let stmt = client.prepare(&_stmt).await?;
-
-        client
-            .execute(
-                &stmt,
-                &[
-                    multi_sig_address,
-                    &req.threshold,
-                    &(req.signers.len() as i16),
-                    &req.name,
-                    mutli_sig_witness_data,
-                ],
-            )
-            .await?;
+        tx.execute(
+            stmt,
+            &[
+                multi_sig_address,
+                &req.threshold,
+                &(req.signers.len() as i16),
+                &req.name,
+                mutli_sig_witness_data,
+            ],
+        )
+        .await?;
         Ok(MultiSigInfo {
             multi_sig_address: multi_sig_address.clone(),
             threshold: req.threshold,
@@ -307,6 +344,82 @@ impl MultiSigDao {
             transaction_id: transaction_id.clone(),
             payload: payload.clone(),
             status: 1,
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        })
+    }
+
+    // Invite
+
+    pub async fn get_invites_list(&self, address: &String) -> Result<Vec<MultiSigInfo>, PoolError> {
+        let client: Client = self.db.get().await?;
+        let _stmt = "
+            SELECT msi.* 
+            FROM multi_sig_info msi
+            LEFT JOIN multi_sig_invites mss 
+            ON mss.multi_sig_address = msi.multi_sig_address
+            WHERE mss.signer_address=$1 and mss.status = 0
+        ";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let invites = client
+            .query(&stmt, &[&address])
+            .await?
+            .iter()
+            .map(|row| MultiSigInfo::from_row_ref(&row).unwrap())
+            .collect::<Vec<MultiSigInfo>>();
+
+        Ok(invites)
+    }
+
+    pub async fn get_invite(
+        &self,
+        address: &String,
+        multisig_address: &String,
+    ) -> Result<Option<MultiSigInvite>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let stmt =
+            "SELECT * FROM multi_sig_invites WHERE multi_sig_address=$1 AND signer_address=$2;";
+        match client.query_opt(stmt, &[multisig_address, address]).await? {
+            Some(row) => {
+                let invite = MultiSigInvite::from_row_ref(&row).unwrap();
+                Ok(Some(invite))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn update_invite_status(
+        &self,
+        tx: &Transaction<'_>,
+        status: i16,
+        address: &String,
+        multisig_address: &String,
+    ) -> Result<bool, PoolError> {
+        let stmt = "UPDATE multi_sig_invites SET status = $1 WHERE multi_sig_address = $2  and signer_address = $3";
+        let res = tx
+            .execute(stmt, &[&status, multisig_address, address])
+            .await?;
+        Ok(res > 0)
+    }
+
+    pub async fn add_new_invite(
+        &self,
+        tx: &Transaction<'_>,
+        multi_sig_address: &String,
+        address: &String,
+        status: i16,
+    ) -> Result<MultiSigInvite, PoolError> {
+        let stmt: &str =
+            "INSERT INTO multi_sig_invites (multi_sig_address, signer_address, status) VALUES ($1, $2, $3);";
+        tx.execute(stmt, &[multi_sig_address, address, &status])
+            .await?;
+
+        Ok(MultiSigInvite {
+            multi_sig_address: multi_sig_address.clone(),
+            signer_address: address.to_string(),
+            status,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
