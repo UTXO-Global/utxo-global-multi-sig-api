@@ -5,9 +5,11 @@ use crate::repositories::ckb::{
     add_signature_to_witness, get_ckb_client, get_ckb_network, get_multisig_config,
 };
 use crate::repositories::db::DB_POOL;
-use crate::serialize::multi_sig_account::{InviteInfo, InviteStatusReq, ListSignerRes};
+use crate::serialize::multi_sig_account::{
+    InviteInfo, InviteStatusReq, ListSignerRes, MultiSigAccountUpdateReq,
+};
 use crate::{
-    models::multi_sig_account::{MultiSigInfo, MultiSigSigner},
+    models::multi_sig_account::MultiSigInfo,
     repositories::multi_sig_account::MultiSigDao,
     serialize::{error::AppError, multi_sig_account::NewMultiSigAccountReq},
 };
@@ -197,6 +199,47 @@ impl MultiSigSrv {
 
         transaction.commit().await.unwrap();
         Ok(account_info)
+    }
+
+    pub async fn update_account(
+        &self,
+        user_address: &String,
+        req: MultiSigAccountUpdateReq,
+    ) -> Result<MultiSigInfo, AppError> {
+        let multisig_info = self
+            .multi_sig_dao
+            .request_multi_sig_info(&req.clone().multi_sig_address)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+
+        if multisig_info.is_none() {
+            return Err(AppError::new(500).message(&"Account not found.".to_string()));
+        }
+
+        let mut info = multisig_info.unwrap();
+        let signer = self
+            .multi_sig_dao
+            .get_signer(user_address, &req.clone().multi_sig_address)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+
+        if signer.is_none() {
+            return Err(AppError::new(500)
+                .message(&"You are not the signer of this multisig address.".to_string()));
+        }
+
+        match self
+            .multi_sig_dao
+            .update_account(req.clone())
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?
+        {
+            true => {
+                info.name = req.clone().name;
+                Ok(info)
+            }
+            false => return Err(AppError::new(500).message(&"Update account failed".to_string())),
+        }
     }
 
     fn validate_outpoints(

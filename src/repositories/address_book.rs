@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::models::address_book::AddressBook;
+use crate::{models::address_book::AddressBook, serialize::address_book::AddressBookReq};
 use chrono::Utc;
 use deadpool_postgres::{Client, Pool, PoolError};
 use tokio_pg_mapper::FromTokioPostgresRow;
@@ -67,5 +67,20 @@ impl AddressBookDao {
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
+    }
+
+    pub async fn update_address(
+        &self,
+        user_address: &String,
+        req: AddressBookReq,
+    ) -> Result<bool, PoolError> {
+        let client: Client = self.db.get().await?;
+        let stmt =
+            "UPDATE address_books SET signer_name=$1 WHERE user_address=$2 AND signer_address=$3";
+        let res = client
+            .execute(stmt, &[&req.signer_name, user_address, &req.signer_address])
+            .await?;
+
+        Ok(res > 0)
     }
 }

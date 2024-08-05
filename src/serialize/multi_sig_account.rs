@@ -16,6 +16,12 @@ pub struct NewMultiSigAccountReq {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct MultiSigAccountUpdateReq {
+    pub multi_sig_address: String,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct NewTransferReq {
     pub signature: String,
     pub payload: String,

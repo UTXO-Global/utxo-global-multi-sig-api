@@ -6,7 +6,7 @@ use crate::{
         multi_sig_invite::MultiSigInvite,
         multi_sig_tx::{CkbSignature, CkbTransaction},
     },
-    serialize::multi_sig_account::NewMultiSigAccountReq,
+    serialize::multi_sig_account::{MultiSigAccountUpdateReq, NewMultiSigAccountReq},
 };
 use chrono::Utc;
 use deadpool_postgres::{Client, Pool, PoolError, Transaction};
@@ -177,6 +177,15 @@ impl MultiSigDao {
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
+    }
+
+    pub async fn update_account(&self, req: MultiSigAccountUpdateReq) -> Result<bool, PoolError> {
+        let client: Client = self.db.get().await?;
+        let stmt = "UPDATE multi_sig_info SET name = $1 WHERE multi_sig_address = $2";
+        let res = client
+            .execute(stmt, &[&req.name, &req.multi_sig_address])
+            .await?;
+        Ok(res > 0)
     }
 
     pub async fn create_new_transfer(
