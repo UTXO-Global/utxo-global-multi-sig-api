@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SignerInfo {
@@ -29,4 +29,18 @@ pub struct SubmitSignatureReq {
 pub struct TransactionFilters {
     pub offset: Option<i32>,
     pub limit: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct InviteStatusReq {
+    pub address: String,
+    pub multisig_address: String,
+    pub status: i16,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct InviteInfo {
+    pub address: String,
+    pub multisig_address: String,
+    pub account_name: String,
 }

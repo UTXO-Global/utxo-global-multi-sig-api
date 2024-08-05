@@ -13,7 +13,10 @@ use ckb_types::{
     bytes::Bytes, core::Capacity, h160, h256, packed::Transaction, prelude::IntoTransactionView,
 };
 use std::{error::Error as StdErr, str::FromStr};
-use utxo_global_multi_sig_api::repositories::ckb::{add_signature_to_witness, get_multisig_config};
+use utxo_global_multi_sig_api::{
+    repositories::ckb::{add_signature_to_witness, get_multisig_config},
+    serialize::multi_sig_account::SignerInfo,
+};
 
 fn get_tx_group_with_script(multisig_config: &MultisigConfig) -> TransactionWithScriptGroups {
     let network_info = NetworkInfo::testnet();
@@ -57,8 +60,15 @@ fn main() -> Result<(), Box<dyn StdErr>> {
 
     // Get multi-sig config
     let (multi_sig_address, multi_sig_witness_data) = get_multisig_config(vec![
-        "ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqtnx6ct4yqxsn9nevq0p4rdfajvpx222cs69m46a".to_string(),
-        "ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sq2hynq78yj62grfgnt48fhnakhdl9mawlcylxhum".to_string()
+        SignerInfo{
+            address: "ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqtnx6ct4yqxsn9nevq0p4rdfajvpx222cs69m46a".to_string(),
+            name: "Test 1".to_owned()
+        }, 
+        SignerInfo{
+            address: "ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sq2hynq78yj62grfgnt48fhnakhdl9mawlcylxhum".to_string(),
+            name: "Test 1".to_owned()
+        }
+        ,
     ], 2).unwrap();
 
     assert_eq!(sender, multi_sig_address);

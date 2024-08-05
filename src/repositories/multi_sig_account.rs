@@ -59,6 +59,70 @@ impl MultiSigDao {
         Ok(signers)
     }
 
+    pub async fn get_signer(
+        &self,
+        address: &String,
+        multisig_address: &String,
+    ) -> Result<Option<MultiSigSigner>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT * FROM multi_sig_signers 
+            WHERE multi_sig_address=$1 and signer_address = $2;";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let row = client
+            .query(&stmt, &[&multisig_address, &address])
+            .await?
+            .pop();
+
+        Ok(match row {
+            Some(row) => Some(MultiSigSigner::from_row_ref(&row).unwrap()),
+            None => None,
+        })
+    }
+
+    pub async fn get_invites_list(&self, address: &String) -> Result<Vec<MultiSigInfo>, PoolError> {
+        let client: Client = self.db.get().await?;
+        let _stmt = "
+            SELECT msi.* 
+            FROM multi_sig_info msi
+            LEFT JOIN multi_sig_signers mss 
+            ON mss.multi_sig_address = msi.multi_sig_address
+            WHERE mss.signer_address=$1 and mss.status = 0
+        ";
+        let stmt = client.prepare(&_stmt).await?;
+
+        let signers = client
+            .query(&stmt, &[&address])
+            .await?
+            .iter()
+            .map(|row| MultiSigInfo::from_row_ref(&row).unwrap())
+            .collect::<Vec<MultiSigInfo>>();
+
+        Ok(signers)
+    }
+
+    pub async fn update_signer_status(
+        &self,
+        status: i16,
+        address: &String,
+        multisig_address: &String,
+    ) -> Result<bool, PoolError> {
+        let mut client: Client = self.db.get().await?;
+
+        let db_transaction = client.transaction().await?;
+
+        // Update tx
+        let _stmt =
+            "UPDATE multi_sig_signers SET status = $1 WHERE multi_sig_address = $2  and signer_address = $3";
+        let stmt = db_transaction.prepare(&_stmt).await?;
+        let res = db_transaction
+            .execute(&stmt, &[&status, multisig_address, address])
+            .await?;
+        db_transaction.commit().await?;
+        Ok(res > 0)
+    }
+
     pub async fn request_list_accounts(
         &self,
         address: &String,
