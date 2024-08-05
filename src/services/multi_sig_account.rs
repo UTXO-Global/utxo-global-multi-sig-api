@@ -2,6 +2,7 @@ use crate::models::multi_sig_tx::CkbTransaction;
 use crate::repositories::ckb::{
     add_signature_to_witness, get_ckb_client, get_ckb_network, get_multisig_config,
 };
+use crate::repositories::db::DB_POOL;
 use crate::{
     models::multi_sig_account::{MultiSigInfo, MultiSigSigner},
     repositories::multi_sig_account::MultiSigDao,
@@ -78,10 +79,50 @@ impl MultiSigSrv {
         let (sender, mutli_sig_witness_data) =
             get_multisig_config(req.signers.clone(), req.threshold as u8)?;
 
-        self.multi_sig_dao
-            .create_new_account(&sender.to_string(), &mutli_sig_witness_data, &req)
+        let mut client = DB_POOL.clone().get().await.unwrap();
+        let transaction = client.transaction().await.unwrap();
+        let account_info;
+        match self
+            .multi_sig_dao
+            .create_new_account(
+                &transaction,
+                &sender.to_string(),
+                &mutli_sig_witness_data,
+                &req,
+            )
             .await
-            .map_err(|err| AppError::new(500).message(&err.to_string()))
+        {
+            Ok(a) => {
+                account_info = a;
+            }
+            Err(err) => {
+                transaction.rollback().await.unwrap();
+                return Err(AppError::new(500).message(&err.to_string()));
+            }
+        }
+
+        for signer in &req.signers {
+            match self
+                .multi_sig_dao
+                .add_new_signer(
+                    &transaction,
+                    &account_info.multi_sig_address,
+                    &signer.name,
+                    &signer.address,
+                    0,
+                )
+                .await
+            {
+                Ok(_) => continue,
+                Err(err) => {
+                    transaction.rollback().await.unwrap();
+                    return Err(AppError::new(500).message(&err.to_string()));
+                }
+            }
+        }
+
+        transaction.commit().await.unwrap();
+        Ok(account_info)
     }
 
     fn validate_outpoints(

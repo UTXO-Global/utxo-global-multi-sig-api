@@ -8,7 +8,7 @@ use crate::{
     serialize::multi_sig_account::NewMultiSigAccountReq,
 };
 use chrono::Utc;
-use deadpool_postgres::{Client, Pool, PoolError};
+use deadpool_postgres::{Client, Pool, PoolError, Transaction};
 use tokio_pg_mapper::FromTokioPostgresRow;
 
 #[derive(Clone, Debug)]
@@ -110,33 +110,51 @@ impl MultiSigDao {
 
     pub async fn create_new_account(
         &self,
+        tx: &Transaction<'_>,
         multi_sig_address: &String,
         mutli_sig_witness_data: &String,
         req: &NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, PoolError> {
-        let client: Client = self.db.get().await?;
+        let stmt: &str = "INSERT INTO multi_sig_info (multi_sig_address, threshold, signers, name, mutli_sig_witness_data) VALUES ($1, $2, $3, $4, $5);";
 
-        let _stmt = "INSERT INTO multi_sig_info (multi_sig_address, threshold, signers, name, mutli_sig_witness_data) VALUES ($1, $2, $3, $4, $5);";
-        let stmt = client.prepare(&_stmt).await?;
-
-        client
-            .execute(
-                &stmt,
-                &[
-                    multi_sig_address,
-                    &req.threshold,
-                    &(req.signers.len() as i16),
-                    &req.name,
-                    mutli_sig_witness_data,
-                ],
-            )
-            .await?;
+        tx.execute(
+            stmt,
+            &[
+                multi_sig_address,
+                &req.threshold,
+                &(req.signers.len() as i16),
+                &req.name,
+                mutli_sig_witness_data,
+            ],
+        )
+        .await?;
         Ok(MultiSigInfo {
             multi_sig_address: multi_sig_address.clone(),
             threshold: req.threshold,
             signers: req.signers.len() as i16,
             name: req.name.clone(),
             mutli_sig_witness_data: mutli_sig_witness_data.clone(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        })
+    }
+
+    pub async fn add_new_signer(
+        &self,
+        tx: &Transaction<'_>,
+        multi_sig_address: &String,
+        name: &String,
+        address: &String,
+        status: i16,
+    ) -> Result<MultiSigSigner, PoolError> {
+        let stmt: &str = "INSERT INTO multi_sig_signers (multi_sig_address, signer_address, signer_name, status) VALUES ($1, $2, $3, $4);";
+        tx.execute(stmt, &[multi_sig_address, address, name, &status])
+            .await?;
+        Ok(MultiSigSigner {
+            multi_sig_address: multi_sig_address.clone(),
+            name: name.to_string(),
+            signer_address: address.to_string(),
+            status: status,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })

@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use crate::config;
 use crate::serialize::error::AppError;
+use crate::serialize::multi_sig_account::SignerInfo;
 use anyhow::anyhow;
 use ckb_sdk::unlock::{MultisigConfig, ScriptSignError};
 use ckb_sdk::Address;
@@ -93,12 +94,12 @@ pub fn add_signature_to_witness(
 }
 
 pub fn get_multisig_config(
-    signers: Vec<String>,
+    signers: Vec<SignerInfo>,
     threshold: u8,
 ) -> Result<(Address, String), AppError> {
     let mut sighash_addresses: Vec<H160> = vec![];
     for signer in signers.iter() {
-        let address = Address::from_str(signer.as_str())
+        let address = Address::from_str(&signer.address.as_str())
             .map_err(|_| AppError::new(400).message("invalid address"))?;
         // https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0021-ckb-address-format/0021-ckb-address-format.md#short-payload-format
         let sighash_address = address.payload().args();

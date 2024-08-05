@@ -1,10 +1,16 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct SignerInfo {
+    pub name: String,
+    pub address: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct NewMultiSigAccountReq {
     pub name: String,
     pub threshold: i16,
-    pub signers: Vec<String>,
+    pub signers: Vec<SignerInfo>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

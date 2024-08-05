@@ -28,7 +28,7 @@ pub async fn create_app() -> std::io::Result<()> {
     println!("\nListening and serving HTTP on {}", listen_address);
 
     HttpServer::new(move || {
-        let cors = Cors::default()
+        let cors: Cors = Cors::default()
             .allow_any_origin()
             .allow_any_header()
             .allow_any_method()
