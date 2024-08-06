@@ -4,7 +4,6 @@ use chrono::Utc;
 
 use ckb_hash::{Blake2bBuilder, CKB_HASH_PERSONALIZATION};
 use ckb_sdk::{Address, AddressPayload};
-use ckb_types::packed::Script;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use secp256k1::{
     ecdsa::{RecoverableSignature, RecoveryId},
@@ -57,7 +56,7 @@ impl UserSrv {
                     Some(mut user) => {
                         if user.nonce.is_none() {
                             user.nonce = Some(Uuid::new_v4().to_string());
-                            let _ = match self.user_dao.update_user(&address, user.clone()).await {
+                            let _ = match self.user_dao.update_user(address, user.clone()).await {
                                 Ok(u) => Ok(UserRequestNonceRes {
                                     nonce: u.nonce.unwrap(),
                                     address: address.to_string(),
@@ -83,9 +82,7 @@ impl UserSrv {
                     }
                 }
             }
-            Err(err) => {
-                return Err(AppError::new(404).message(&format!("invalid address: {}", err)));
-            }
+            Err(err) => Err(AppError::new(404).message(&format!("invalid address: {}", err))),
         }
     }
 
@@ -108,7 +105,7 @@ impl UserSrv {
                 let secp_message =
                     Message::from_slice(&message_hash).expect("Invalid message hash");
 
-                let sig_bytes = hex::decode(&signature).expect("Invalid signature hex");
+                let sig_bytes = hex::decode(signature).expect("Invalid signature hex");
                 let r = &sig_bytes[0..32];
                 let s = &sig_bytes[32..64];
                 let rec_id = sig_bytes[64]; // Recovery ID as byte
@@ -178,6 +175,6 @@ impl UserSrv {
             .user_dao
             .update_user(&user.user_address, user.clone())
             .await;
-        return res.is_ok();
+        res.is_ok()
     }
 }

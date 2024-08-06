@@ -411,7 +411,7 @@ impl MultiSigSrv {
             // Add Signatures to witness
             let tx = add_signature_to_witness(
                 multi_sig_info.threshold as usize,
-                &tx,
+                tx,
                 &multi_sig_info.mutli_sig_witness_data,
                 signatures,
             )
@@ -465,7 +465,7 @@ impl MultiSigSrv {
         let multi_sig_address = self.validate_outpoints(&outpoints)?;
 
         // Validate if user is one of multi-sig signers
-        self.validate_signer(&signer_address, &multi_sig_address)
+        self.validate_signer(signer_address, &multi_sig_address)
             .await?;
         let multi_sig_info = self.request_multi_sig_info(&multi_sig_address).await?;
 
@@ -573,11 +573,11 @@ impl MultiSigSrv {
                 }
 
                 transaction.rollback().await.unwrap();
-                return Err(AppError::new(500).message(&"Update invite failed".to_string()));
+                Err(AppError::new(500).message("Update invite failed"))
             }
             Err(err) => {
                 transaction.rollback().await.unwrap();
-                return Err(AppError::new(500).message(&err.to_string()));
+                Err(AppError::new(500).message(&err.to_string()))
             }
         }
     }

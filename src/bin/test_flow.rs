@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
         SignerInfo{
             address: "ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqtnx6ct4yqxsn9nevq0p4rdfajvpx222cs69m46a".to_string(),
             name: "Test 1".to_owned()
-        }, 
+        },
         SignerInfo{
             address: "ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sq2hynq78yj62grfgnt48fhnakhdl9mawlcylxhum".to_string(),
             name: "Test 1".to_owned()

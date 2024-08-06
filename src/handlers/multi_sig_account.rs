@@ -178,7 +178,7 @@ async fn submit_signature(
     let user_address = ext.get::<String>().unwrap();
 
     match multi_sig_srv
-        .submit_signature(&user_address, &req.signature, &req.txid)
+        .submit_signature(user_address, &req.signature, &req.txid)
         .await
     {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
