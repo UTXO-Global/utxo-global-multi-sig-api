@@ -51,6 +51,8 @@ pub struct InviteInfo {
     pub address: String,
     pub multisig_address: String,
     pub account_name: String,
+    pub signers: i16,
+    pub threshold: i16,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
