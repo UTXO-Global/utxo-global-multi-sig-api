@@ -1,4 +1,5 @@
 -- Add migration script here
+
 CREATE TABLE IF NOT EXISTS address_books (
   id SERIAL PRIMARY KEY,
   user_address VARCHAR(200) NOT NULL,

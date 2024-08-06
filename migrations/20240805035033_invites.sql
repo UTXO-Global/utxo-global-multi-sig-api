@@ -1,5 +1,5 @@
 -- Add migration script here
--- Add migration script here
+
 CREATE TABLE IF NOT EXISTS multi_sig_invites (
   id SERIAL PRIMARY KEY,
   multi_sig_address VARCHAR(200) NOT NULL,
