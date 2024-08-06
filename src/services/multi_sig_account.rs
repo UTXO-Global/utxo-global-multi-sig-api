@@ -502,6 +502,8 @@ impl MultiSigSrv {
                 address: address.to_string(),
                 multisig_address: acc.multi_sig_address,
                 account_name: acc.name,
+                signers: acc.signers,
+                threshold: acc.threshold,
             })
         }
 
