@@ -161,7 +161,7 @@ impl MultiSigSrv {
                 }
             }
 
-            // Check and add address book
+            // Check and create a new address book
             match self
                 .address_book_dao
                 .get_address(user_address, &signer.address)
@@ -178,7 +178,7 @@ impl MultiSigSrv {
                 Err(_) => (),
             }
 
-            // Add to invite
+            // Add signer to invite table
             match self
                 .multi_sig_dao
                 .add_new_invite(

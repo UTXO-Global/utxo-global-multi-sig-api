@@ -4,6 +4,7 @@ use chrono::Utc;
 
 use ckb_hash::{Blake2bBuilder, CKB_HASH_PERSONALIZATION};
 use ckb_sdk::{Address, AddressPayload};
+use ckb_types::packed::Script;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use secp256k1::{
     ecdsa::{RecoverableSignature, RecoveryId},
@@ -45,38 +46,45 @@ impl UserSrv {
     }
 
     pub async fn get_nonce(&self, address: &String) -> Result<UserRequestNonceRes, AppError> {
-        match self
-            .user_dao
-            .get_user_by_address(&address.clone())
-            .await
-            .map_err(|err| AppError::new(500).message(&err.to_string()))?
-        {
-            Some(mut user) => {
-                if user.nonce.is_none() {
-                    user.nonce = Some(Uuid::new_v4().to_string());
-                    let _ = match self.user_dao.update_user(&address, user.clone()).await {
-                        Ok(u) => Ok(UserRequestNonceRes {
-                            nonce: u.nonce.unwrap(),
-                            address: address.to_string(),
-                        }),
-                        Err(err) => Err(AppError::new(500).message(&err.to_string())),
-                    };
-                }
+        match Address::from_str(address) {
+            Ok(_) => {
+                match self
+                    .user_dao
+                    .get_user_by_address(&address.clone())
+                    .await
+                    .map_err(|err| AppError::new(500).message(&err.to_string()))?
+                {
+                    Some(mut user) => {
+                        if user.nonce.is_none() {
+                            user.nonce = Some(Uuid::new_v4().to_string());
+                            let _ = match self.user_dao.update_user(&address, user.clone()).await {
+                                Ok(u) => Ok(UserRequestNonceRes {
+                                    nonce: u.nonce.unwrap(),
+                                    address: address.to_string(),
+                                }),
+                                Err(err) => Err(AppError::new(500).message(&err.to_string())),
+                            };
+                        }
 
-                Ok(UserRequestNonceRes {
-                    nonce: user.nonce.clone().unwrap(),
-                    address: address.to_string(),
-                })
-            }
-            None => {
-                let user_default = User::default(address.to_string());
-                match self.user_dao.add_user(user_default).await {
-                    Ok(user) => Ok(UserRequestNonceRes {
-                        nonce: user.nonce.unwrap(),
-                        address: address.to_string(),
-                    }),
-                    Err(err) => Err(AppError::new(500).message(&err.to_string())),
+                        Ok(UserRequestNonceRes {
+                            nonce: user.nonce.clone().unwrap(),
+                            address: address.to_string(),
+                        })
+                    }
+                    None => {
+                        let user_default = User::default(address.to_string());
+                        match self.user_dao.add_user(user_default).await {
+                            Ok(user) => Ok(UserRequestNonceRes {
+                                nonce: user.nonce.unwrap(),
+                                address: address.to_string(),
+                            }),
+                            Err(err) => Err(AppError::new(500).message(&err.to_string())),
+                        }
+                    }
                 }
+            }
+            Err(err) => {
+                return Err(AppError::new(404).message(&format!("invalid address: {}", err)));
             }
         }
     }
