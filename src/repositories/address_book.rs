@@ -19,13 +19,13 @@ impl AddressBookDao {
         let client: Client = self.db.get().await?;
 
         let _stmt = "SELECT * FROM address_books WHERE user_address=$1;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let addresses = client
             .query(&stmt, &[&address])
             .await?
             .iter()
-            .map(|row| AddressBook::from_row_ref(&row).unwrap())
+            .map(|row| AddressBook::from_row_ref(row).unwrap())
             .collect::<Vec<AddressBook>>();
 
         Ok(addresses)

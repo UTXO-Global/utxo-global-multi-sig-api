@@ -106,8 +106,7 @@ impl MultiSigSrv {
 
         let mut client = DB_POOL.clone().get().await.unwrap();
         let transaction = client.transaction().await.unwrap();
-        let account_info: MultiSigInfo;
-        match self
+        let account_info: MultiSigInfo = match self
             .multi_sig_dao
             .create_new_account(
                 &transaction,
@@ -117,14 +116,12 @@ impl MultiSigSrv {
             )
             .await
         {
-            Ok(a) => {
-                account_info = a;
-            }
+            Ok(a) => a,
             Err(err) => {
                 transaction.rollback().await.unwrap();
                 return Err(AppError::new(500).message(&err.to_string()));
             }
-        }
+        };
 
         for signer in &req.signers {
             match self
@@ -213,7 +210,7 @@ impl MultiSigSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
         if multisig_info.is_none() {
-            return Err(AppError::new(500).message(&"Account not found.".to_string()));
+            return Err(AppError::new(500).message("Account not found."));
         }
 
         let mut info = multisig_info.unwrap();
@@ -224,8 +221,9 @@ impl MultiSigSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
         if signer.is_none() {
-            return Err(AppError::new(500)
-                .message(&"You are not the signer of this multisig address.".to_string()));
+            return Err(
+                AppError::new(500).message("You are not the signer of this multisig address.")
+            );
         }
 
         match self
@@ -238,7 +236,7 @@ impl MultiSigSrv {
                 info.name = req.clone().name;
                 Ok(info)
             }
-            false => return Err(AppError::new(500).message(&"Update account failed".to_string())),
+            false => Err(AppError::new(500).message("Update account failed")),
         }
     }
 
@@ -272,7 +270,7 @@ impl MultiSigSrv {
                 return Err(AppError::new(400).message("invalid outpoint - not owned"));
             }
         }
-        return Ok(multi_sig_address);
+        Ok(multi_sig_address)
     }
 
     async fn validate_signer(
@@ -289,7 +287,7 @@ impl MultiSigSrv {
             return Err(AppError::new(401).message("invalid signer"));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     async fn sync_status_after_broadcast(
@@ -344,7 +342,7 @@ impl MultiSigSrv {
         let multi_sig_address = self.validate_outpoints(&outpoints)?;
 
         // Validate if user is one of multi-sig signers
-        self.validate_signer(&signer_address, &multi_sig_address)
+        self.validate_signer(signer_address, &multi_sig_address)
             .await?;
         let multi_sig_info = self.request_multi_sig_info(&multi_sig_address).await?;
 

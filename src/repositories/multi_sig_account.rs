@@ -30,7 +30,7 @@ impl MultiSigDao {
 
         let _stmt = "SELECT * FROM multi_sig_info 
             WHERE multi_sig_address=$1;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let row = client.query(&stmt, &[&address]).await?.pop();
 
@@ -48,13 +48,13 @@ impl MultiSigDao {
 
         let _stmt = "SELECT * FROM multi_sig_signers 
             WHERE multi_sig_address=$1;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let signers = client
             .query(&stmt, &[&address])
             .await?
             .iter()
-            .map(|row| MultiSigSigner::from_row_ref(&row).unwrap())
+            .map(|row| MultiSigSigner::from_row_ref(row).unwrap())
             .collect::<Vec<MultiSigSigner>>();
 
         Ok(signers)
@@ -69,7 +69,7 @@ impl MultiSigDao {
 
         let _stmt = "SELECT * FROM multi_sig_signers 
             WHERE multi_sig_address=$1 and signer_address = $2;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let row = client
             .query(&stmt, &[&multisig_address, &address])
@@ -109,13 +109,13 @@ impl MultiSigDao {
             LEFT JOIN multi_sig_signers mss 
                 ON mss.multi_sig_address = msi.multi_sig_address
             WHERE mss.signer_address=$1;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let accounts = client
             .query(&stmt, &[&address])
             .await?
             .iter()
-            .map(|row| MultiSigInfo::from_row_ref(&row).unwrap())
+            .map(|row| MultiSigInfo::from_row_ref(row).unwrap())
             .collect::<Vec<MultiSigInfo>>();
 
         Ok(accounts)
@@ -136,13 +136,13 @@ impl MultiSigDao {
                 ON mss.multi_sig_address = cells.multi_sig_address
             WHERE mss.signer_address=$1
             OFFSET $2 LIMIT $3;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let txs = client
             .query(&stmt, &[&signer_address, &offset, &limit])
             .await?
             .iter()
-            .map(|row| CkbTransaction::from_row_ref(&row).unwrap())
+            .map(|row| CkbTransaction::from_row_ref(row).unwrap())
             .collect::<Vec<CkbTransaction>>();
 
         Ok(txs)
@@ -204,7 +204,7 @@ impl MultiSigDao {
         // Create tx
         let _stmt =
             "INSERT INTO transactions (transaction_id, payload, status) VALUES ($1, $2, 0);";
-        let stmt = db_transaction.prepare(&_stmt).await?;
+        let stmt = db_transaction.prepare(_stmt).await?;
         db_transaction
             .execute(&stmt, &[transaction_id, payload])
             .await?;
@@ -213,7 +213,7 @@ impl MultiSigDao {
         for outpoint in outpoints {
             let _stmt =
             "INSERT INTO cells (multi_sig_address, outpoint, transaction_id, status) VALUES ($1, $2, 0);";
-            let stmt = db_transaction.prepare(&_stmt).await?;
+            let stmt = db_transaction.prepare(_stmt).await?;
             db_transaction
                 .execute(&stmt, &[multi_sig_address, &outpoint, transaction_id])
                 .await?;
@@ -222,7 +222,7 @@ impl MultiSigDao {
         // Add first signatures - requester of this new transaction
         let _stmt =
             "INSERT INTO signatures (signer_address, transaction_id, signature) VALUES ($1, $2, $3);";
-        let stmt = db_transaction.prepare(&_stmt).await?;
+        let stmt = db_transaction.prepare(_stmt).await?;
         db_transaction
             .execute(&stmt, &[signer_address, transaction_id, &signature])
             .await?;
@@ -243,14 +243,10 @@ impl MultiSigDao {
 
         let _stmt = "SELECT * FROM transactions 
             WHERE transaction_id=$1;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let row = client.query(&stmt, &[&txid]).await?.pop();
-
-        Ok(match row {
-            Some(row) => Some(CkbTransaction::from_row_ref(&row).unwrap()),
-            None => None,
-        })
+        Ok(row.map(|row| CkbTransaction::from_row_ref(&row).unwrap()))
     }
 
     pub async fn add_signature(
@@ -265,7 +261,7 @@ impl MultiSigDao {
         // Add signature
         let _stmt =
             "INSERT INTO signatures (signer_address, transaction_id, signature) VALUES ($1, $2, $3);";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
         client
             .execute(&stmt, &[signer_address, transaction_id, &signature])
             .await?;
@@ -288,7 +284,7 @@ impl MultiSigDao {
 
         let _stmt = "SELECT * FROM multi_sig_signers
             WHERE multi_sig_address=$1 AND signer_address=$2;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let row = client
             .query(&stmt, &[&multi_sig_address, &signer_address])
@@ -309,13 +305,13 @@ impl MultiSigDao {
 
         let _stmt = "SELECT * FROM signatures 
             WHERE transaction_id=$1;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let signatures = client
             .query(&stmt, &[&txid])
             .await?
             .iter()
-            .map(|row| CkbSignature::from_row_ref(&row).unwrap())
+            .map(|row| CkbSignature::from_row_ref(row).unwrap())
             .collect::<Vec<CkbSignature>>();
 
         Ok(signatures)
@@ -333,7 +329,7 @@ impl MultiSigDao {
 
         // Update tx
         let _stmt = "UPDATE transactions SET status = 1, payload = $2  WHERE transaction_id = $1;";
-        let stmt = db_transaction.prepare(&_stmt).await?;
+        let stmt = db_transaction.prepare(_stmt).await?;
         db_transaction
             .execute(&stmt, &[transaction_id, payload])
             .await?;
@@ -341,7 +337,7 @@ impl MultiSigDao {
         // Update cells from tx info
         for outpoint in outpoints {
             let _stmt = "UPDATE cells SET status = 1 WHERE outpoint = $1 AND transaction_id = $2;";
-            let stmt = db_transaction.prepare(&_stmt).await?;
+            let stmt = db_transaction.prepare(_stmt).await?;
             db_transaction
                 .execute(&stmt, &[&outpoint, transaction_id])
                 .await?;
@@ -369,13 +365,13 @@ impl MultiSigDao {
             ON mss.multi_sig_address = msi.multi_sig_address
             WHERE mss.signer_address=$1 and mss.status = 0
         ";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let invites = client
             .query(&stmt, &[&address])
             .await?
             .iter()
-            .map(|row| MultiSigInfo::from_row_ref(&row).unwrap())
+            .map(|row| MultiSigInfo::from_row_ref(row).unwrap())
             .collect::<Vec<MultiSigInfo>>();
 
         Ok(invites)
@@ -391,13 +387,13 @@ impl MultiSigDao {
             FROM multi_sig_invites
             WHERE multi_sig_address=$1
         ";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let invites: Vec<MultiSigInvite> = client
             .query(&stmt, &[&address])
             .await?
             .iter()
-            .map(|row| MultiSigInvite::from_row_ref(&row).unwrap())
+            .map(|row| MultiSigInvite::from_row_ref(row).unwrap())
             .collect::<Vec<MultiSigInvite>>();
 
         Ok(invites)

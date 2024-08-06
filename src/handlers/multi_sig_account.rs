@@ -160,7 +160,7 @@ async fn create_new_transfer(
     let user_address = ext.get::<String>().unwrap();
 
     match multi_sig_srv
-        .create_new_transfer(&user_address, &req.signature, &req.payload)
+        .create_new_transfer(user_address, &req.signature, &req.payload)
         .await
     {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),

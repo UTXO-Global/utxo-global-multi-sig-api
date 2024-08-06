@@ -34,7 +34,7 @@ impl AddressBookSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
         if address_book.is_none() {
-            return Err(AppError::new(500).message(&"Address not found.".to_string()));
+            return Err(AppError::new(500).message("Address not found."));
         }
 
         let mut info = address_book.unwrap();
@@ -49,7 +49,7 @@ impl AddressBookSrv {
                 info.signer_name = req.clone().signer_name;
                 Ok(info)
             }
-            false => return Err(AppError::new(500).message(&"Update address failed".to_string())),
+            false => Err(AppError::new(500).message("Update address failed")),
         }
     }
 
