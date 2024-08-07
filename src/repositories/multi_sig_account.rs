@@ -33,7 +33,6 @@ impl MultiSigDao {
         let stmt = client.prepare(_stmt).await?;
 
         let row = client.query(&stmt, &[&address]).await?.pop();
-
         Ok(row.map(|row| MultiSigInfo::from_row_ref(&row).unwrap()))
     }
 
