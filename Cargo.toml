@@ -19,6 +19,9 @@ name = "test_flow"
 test = false
 bench = false
 
+[package.metadata.clippy]
+skip-deps = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
