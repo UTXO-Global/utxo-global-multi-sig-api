@@ -34,10 +34,7 @@ impl MultiSigDao {
 
         let row = client.query(&stmt, &[&address]).await?.pop();
 
-        Ok(match row {
-            Some(row) => Some(MultiSigInfo::from_row_ref(&row).unwrap()),
-            None => None,
-        })
+        Ok(row.map(|row| MultiSigInfo::from_row_ref(&row).unwrap()))
     }
 
     pub async fn request_list_signers(
@@ -76,10 +73,7 @@ impl MultiSigDao {
             .await?
             .pop();
 
-        Ok(match row {
-            Some(row) => Some(MultiSigSigner::from_row_ref(&row).unwrap()),
-            None => None,
-        })
+        Ok(row.map(|row| MultiSigSigner::from_row_ref(&row).unwrap()))
     }
 
     pub async fn add_new_signer(
@@ -252,7 +246,7 @@ impl MultiSigDao {
     pub async fn add_signature(
         &self,
         transaction_id: &String,
-        payload: &String,
+        payload: &str,
         signer_address: &String,
         signature: &String,
     ) -> Result<CkbTransaction, PoolError> {
@@ -268,7 +262,7 @@ impl MultiSigDao {
 
         Ok(CkbTransaction {
             transaction_id: transaction_id.clone(),
-            payload: payload.clone(),
+            payload: payload.to_owned(),
             status: 0,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
@@ -291,10 +285,7 @@ impl MultiSigDao {
             .await?
             .pop();
 
-        Ok(match row {
-            Some(row) => Some(MultiSigSigner::from_row_ref(&row).unwrap()),
-            None => None,
-        })
+        Ok(row.map(|row| MultiSigSigner::from_row_ref(&row).unwrap()))
     }
 
     pub async fn get_list_signatures_by_txid(

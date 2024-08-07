@@ -23,10 +23,7 @@ impl UserDao {
 
         let row = client.query(&stmt, &[&address]).await?.pop();
 
-        Ok(match row {
-            Some(row) => Some(User::from_row_ref(&row).unwrap()),
-            None => None,
-        })
+        Ok(row.map(|row| User::from_row_ref(&row).unwrap()))
     }
 
     pub async fn add_user(&self, user: User) -> Result<User, PoolError> {

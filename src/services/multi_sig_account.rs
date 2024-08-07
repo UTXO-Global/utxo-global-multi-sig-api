@@ -35,10 +35,10 @@ impl MultiSigSrv {
         }
     }
 
-    pub async fn request_multi_sig_info(&self, address: &String) -> Result<MultiSigInfo, AppError> {
+    pub async fn request_multi_sig_info(&self, address: &str) -> Result<MultiSigInfo, AppError> {
         match self
             .multi_sig_dao
-            .request_multi_sig_info(&address.clone())
+            .request_multi_sig_info(&address.to_owned())
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?
         {
@@ -47,7 +47,7 @@ impl MultiSigSrv {
         }
     }
 
-    pub async fn request_list_signers(&self, address: &String) -> Result<ListSignerRes, AppError> {
+    pub async fn request_list_signers(&self, address: &str) -> Result<ListSignerRes, AppError> {
         let mut result = ListSignerRes {
             signers: [].to_vec(),
             invites: [].to_vec(),
@@ -55,7 +55,7 @@ impl MultiSigSrv {
 
         match self
             .multi_sig_dao
-            .request_list_signers(&address.clone())
+            .request_list_signers(&address.to_owned())
             .await
         {
             Ok(signers) => result.signers = signers,
@@ -64,7 +64,7 @@ impl MultiSigSrv {
 
         match self
             .multi_sig_dao
-            .get_invites_by_multisig(&address.clone())
+            .get_invites_by_multisig(&address.to_owned())
             .await
         {
             Ok(invites) => result.invites = invites,
@@ -76,22 +76,22 @@ impl MultiSigSrv {
 
     pub async fn request_list_accounts(
         &self,
-        signer_address: &String,
+        signer_address: &str,
     ) -> Result<Vec<MultiSigInfo>, AppError> {
         self.multi_sig_dao
-            .request_list_accounts(&signer_address.clone())
+            .request_list_accounts(&signer_address.to_owned())
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
     }
 
     pub async fn request_list_transactions(
         &self,
-        signer_address: &String,
+        signer_address: &str,
         offset: i32,
         limit: i32,
     ) -> Result<Vec<CkbTransaction>, AppError> {
         self.multi_sig_dao
-            .request_list_transactions(&signer_address.clone(), offset, limit)
+            .request_list_transactions(&signer_address.to_owned(), offset, limit)
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
     }
@@ -130,7 +130,7 @@ impl MultiSigSrv {
                 .await
             {
                 Ok(_signer) => {
-                    if !_signer.is_none() {
+                    if let Some(_signer) = _signer {
                         continue;
                     }
                 }
@@ -159,20 +159,17 @@ impl MultiSigSrv {
             }
 
             // Check and create a new address book
-            match self
+            if let Ok(address_book) = self
                 .address_book_dao
                 .get_address(user_address, &signer.address)
                 .await
             {
-                Ok(address_book) => {
-                    if address_book.is_none() {
-                        let _ = self
-                            .address_book_dao
-                            .add_address(user_address, &signer.address, &signer.name)
-                            .await;
-                    }
+                if address_book.is_none() {
+                    let _ = self
+                        .address_book_dao
+                        .add_address(user_address, &signer.address, &signer.name)
+                        .await;
                 }
-                Err(_) => (),
             }
 
             // Add signer to invite table
@@ -242,10 +239,10 @@ impl MultiSigSrv {
 
     fn validate_outpoints(
         &self,
-        outpoints: &Vec<ckb_jsonrpc_types::OutPoint>,
+        outpoints: &[ckb_jsonrpc_types::OutPoint],
     ) -> Result<String, AppError> {
         let mut multi_sig_address = "".to_string();
-        for outpoint in outpoints.clone() {
+        for outpoint in outpoints.iter().cloned() {
             let cell_with_status = get_ckb_client().get_live_cell(outpoint, false).unwrap();
             if cell_with_status.status.ne(&"live".to_owned()) {
                 return Err(AppError::new(400).message("invalid outpoint - consumed"));
@@ -335,7 +332,7 @@ impl MultiSigSrv {
 
         let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
             .input_pts_iter()
-            .map(|outpoint| ckb_jsonrpc_types::OutPoint::from(outpoint))
+            .map(ckb_jsonrpc_types::OutPoint::from)
             .collect();
 
         // validate outpoints status from CKB node
@@ -371,10 +368,10 @@ impl MultiSigSrv {
         Ok(ckb_tx)
     }
 
-    async fn get_tx_by_hash(&self, txid: &String) -> Result<CkbTransaction, AppError> {
+    async fn get_tx_by_hash(&self, txid: &str) -> Result<CkbTransaction, AppError> {
         match self
             .multi_sig_dao
-            .get_tx_by_hash(&txid.clone())
+            .get_tx_by_hash(&txid.to_owned())
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?
         {
@@ -437,7 +434,7 @@ impl MultiSigSrv {
         &self,
         signer_address: &String,
         signature: &String,
-        txid: &String,
+        txid: &str,
     ) -> Result<CkbTransaction, AppError> {
         let ckb_tx = self.get_tx_by_hash(txid).await?;
 
@@ -453,7 +450,7 @@ impl MultiSigSrv {
 
         let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
             .input_pts_iter()
-            .map(|outpoint| ckb_jsonrpc_types::OutPoint::from(outpoint))
+            .map(ckb_jsonrpc_types::OutPoint::from)
             .collect();
 
         // validate outpoints status from CKB node
@@ -516,7 +513,7 @@ impl MultiSigSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()));
 
         let signer = signer_result.unwrap();
-        if !signer.clone().is_none() {
+        if signer.clone().is_some() {
             return Err(AppError::new(500).message("Signer has accepted"));
         }
 

@@ -39,8 +39,10 @@ async fn request_invites_list(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let address = ext.get::<String>().unwrap().to_string();
+    let address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     match multi_sig_srv.get_invites_list(&address).await {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
         Err(err) => Err(err),
@@ -53,9 +55,12 @@ async fn request_accept_invite(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
+    let address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     let req = &InviteStatusReq {
-        address: ext.get::<String>().unwrap().to_string(),
+        address,
         multisig_address: multisig_address.to_string(),
         status: MultiSigInviteStatus::ACCEPTED as i16,
     };
@@ -71,9 +76,12 @@ async fn request_reject_invite(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
+    let address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     let req = &InviteStatusReq {
-        address: ext.get::<String>().unwrap().to_string(),
+        address,
         multisig_address: multisig_address.to_string(),
         status: MultiSigInviteStatus::REJECTED as i16,
     };
@@ -89,8 +97,10 @@ async fn request_list_accounts(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let signer_address = ext.get::<String>().unwrap().to_string();
+    let signer_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     match multi_sig_srv.request_list_accounts(&signer_address).await {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
         Err(err) => Err(err),
@@ -121,10 +131,12 @@ async fn create_new_account(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let user_address = ext.get::<String>().unwrap();
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     match multi_sig_srv
-        .create_new_account(user_address, req.clone())
+        .create_new_account(&user_address, req.clone())
         .await
     {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
@@ -138,8 +150,10 @@ async fn request_update_account(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let user_address = ext.get::<String>().unwrap().to_string();
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
 
     match multi_sig_srv
         .update_account(&user_address, req.clone())
@@ -156,11 +170,13 @@ async fn create_new_transfer(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let user_address = ext.get::<String>().unwrap();
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
 
     match multi_sig_srv
-        .create_new_transfer(user_address, &req.signature, &req.payload)
+        .create_new_transfer(&user_address, &req.signature, &req.payload)
         .await
     {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
@@ -174,11 +190,13 @@ async fn submit_signature(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let user_address = ext.get::<String>().unwrap();
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
 
     match multi_sig_srv
-        .submit_signature(user_address, &req.signature, &req.txid)
+        .submit_signature(&user_address, &req.signature, &req.txid)
         .await
     {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),

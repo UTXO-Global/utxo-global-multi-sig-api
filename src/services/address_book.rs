@@ -15,9 +15,9 @@ impl AddressBookSrv {
         }
     }
 
-    pub async fn get_address_list(&self, address: &String) -> Result<Vec<AddressBook>, AppError> {
+    pub async fn get_address_list(&self, address: &str) -> Result<Vec<AddressBook>, AppError> {
         self.address_book_dao
-            .get_address_books(&address.clone())
+            .get_address_books(&address.to_owned())
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
     }
@@ -64,8 +64,8 @@ impl AddressBookSrv {
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
-        if !address_book.is_none() {
-            return Ok(address_book.unwrap());
+        if let Some(address_book) = address_book {
+            return Ok(address_book);
         }
 
         match self

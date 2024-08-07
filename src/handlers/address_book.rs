@@ -11,8 +11,10 @@ async fn request_get_address_books(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let address = ext.get::<String>().unwrap().to_string();
+    let address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     match address_book_srv.get_address_list(&address).await {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
         Err(err) => Err(err),
@@ -25,8 +27,10 @@ async fn request_update_address(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let user_address = ext.get::<String>().unwrap().to_string();
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     match address_book_srv
         .update_address(&user_address, req.clone())
         .await
@@ -42,8 +46,10 @@ async fn request_add_address(
     http_req: HttpRequest,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    let ext = http_req.extensions();
-    let user_address = ext.get::<String>().unwrap().to_string();
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     match address_book_srv
         .add_address(&user_address, req.clone())
         .await
