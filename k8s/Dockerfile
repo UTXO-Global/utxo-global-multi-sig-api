@@ -14,7 +14,7 @@ RUN adduser \
     deployer
 
 WORKDIR /srv
-COPY ./target/release/utxo-global-multi-sig-api ./
+COPY ./target/release/app ./utxo-global-multi-sig-api
 COPY ./config.toml ./
 RUN chmod 550 utxo-global-multi-sig-api
 
