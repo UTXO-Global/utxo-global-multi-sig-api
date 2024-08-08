@@ -1,6 +1,6 @@
 use crate::{
     config,
-    handlers::{address_book, multi_sig_account},
+    handlers::{address_book, ckb_explorer, multi_sig_account},
     repositories::{self, db::DB_POOL},
     services,
 };
@@ -13,6 +13,7 @@ pub fn init_routes(cfg: &mut web::ServiceConfig) {
     user::route(cfg);
     multi_sig_account::route(cfg);
     address_book::route(cfg);
+    ckb_explorer::route(cfg);
 }
 
 pub async fn create_app() -> std::io::Result<()> {
