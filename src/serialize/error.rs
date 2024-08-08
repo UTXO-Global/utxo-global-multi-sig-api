@@ -57,3 +57,5 @@ impl ResponseError for AppError {
         })
     }
 }
+
+impl std::error::Error for AppError {}
