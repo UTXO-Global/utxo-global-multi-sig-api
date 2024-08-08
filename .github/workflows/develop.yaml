@@ -72,4 +72,4 @@ jobs:
 
       - name: Apply to K8S
         run: |-
-          kubectl rollout restart -n utxo-global-${{ env.NAMESPACE }} deploy ${{ env.CURRENT_SERVICE }}
+          kubectl rollout restart -n utxo-global-${{ env.NAMESPACE }} deploy multi-sig-api

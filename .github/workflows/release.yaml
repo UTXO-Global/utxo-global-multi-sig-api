@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [ staging, prod ]
+    branches: [staging, prod]
 
 env:
   CURRENT_SERVICE: ${{ github.event.repository.name }}
@@ -33,14 +33,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.ZONE }}
           role-duration-seconds: 1200
-      
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Release Build
         run: cargo build --release
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
@@ -53,7 +53,7 @@ jobs:
           tags: ${{ env.AWS_ECR_URI }}/${{ env.CURRENT_SERVICE }}:${{ env.NAMESPACE }}
           cache-from: type=registry,ref=${{ env.AWS_ECR_URI }}/${{ env.CURRENT_SERVICE }}:${{ env.NAMESPACE }}
           cache-to: type=inline
-      
+
   rollout:
     name: Rollout Service
     runs-on: ubuntu-latest
@@ -65,11 +65,11 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.ZONE }}
-          
+
       - name: Config K8s credentials
         run: |-
           aws eks --region ${{ env.ZONE }} update-kubeconfig --name ${{ env.CLUSTER_NAME }} --role-arn arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/Bitsnap
 
       - name: Apply to K8S
         run: |-
-          kubectl rollout restart -n utxo-global-${{ env.NAMESPACE }} deploy ${{ env.CURRENT_SERVICE }}
+          kubectl rollout restart -n utxo-global-${{ env.NAMESPACE }} deploy multi-sig-api
