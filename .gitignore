@@ -5,4 +5,3 @@
 .env.local
 .DS_Store
 note
-k8s

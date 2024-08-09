@@ -1,12 +1,6 @@
 use std::io;
 
-mod app;
-mod config;
-mod handlers;
-mod models;
-mod repositories;
-mod serialize;
-mod services;
+use utxo_global_multi_sig_api::app;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {

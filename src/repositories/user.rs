@@ -19,21 +19,18 @@ impl UserDao {
 
         let _stmt = "SELECT * FROM users 
             WHERE user_address=$1;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         let row = client.query(&stmt, &[&address]).await?.pop();
 
-        Ok(match row {
-            Some(row) => Some(User::from_row_ref(&row).unwrap()),
-            None => None,
-        })
+        Ok(row.map(|row| User::from_row_ref(&row).unwrap()))
     }
 
     pub async fn add_user(&self, user: User) -> Result<User, PoolError> {
         let client: Client = self.db.get().await?;
 
         let _stmt = "INSERT INTO users (user_address, nonce) VALUES ($1, $2);";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         client
             .execute(&stmt, &[&user.user_address, &user.nonce])
@@ -45,7 +42,7 @@ impl UserDao {
         let client: Client = self.db.get().await?;
 
         let _stmt = "UPDATE users SET nonce = $2, updated_at = NOW() WHERE user_address = $1;";
-        let stmt = client.prepare(&_stmt).await?;
+        let stmt = client.prepare(_stmt).await?;
 
         client.execute(&stmt, &[&user_address, &user.nonce]).await?;
         Ok(user)
