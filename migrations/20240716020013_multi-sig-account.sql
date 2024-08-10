@@ -11,8 +11,7 @@ CREATE TABLE IF NOT EXISTS multi_sig_signers (
 CREATE INDEX signer_address_index ON multi_sig_signers (signer_address);
 
 CREATE TABLE IF NOT EXISTS multi_sig_info (
-  id SERIAL PRIMARY KEY,
-  multi_sig_address VARCHAR(200),
+  multi_sig_address VARCHAR(200) PRIMARY KEY,
   threshold SMALLINT NOT NULL DEFAULT 1,
   signers SMALLINT NOT NULL DEFAULT 1,
   mutli_sig_witness_data VARCHAR(200) NOT NULL,
