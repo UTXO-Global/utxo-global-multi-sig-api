@@ -2,7 +2,7 @@ use crate::models::multi_sig_invite::MultiSigInviteStatus;
 use crate::models::multi_sig_tx::CkbTransaction;
 use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
-    add_signature_to_witness, get_ckb_client, get_ckb_network, get_multisig_config,
+    add_signature_to_witness, get_ckb_client, get_ckb_network, get_live_cell, get_multisig_config,
 };
 use crate::repositories::db::DB_POOL;
 use crate::serialize::multi_sig_account::{
@@ -19,7 +19,7 @@ use ckb_sdk::AddressPayload;
 use ckb_types::bytes::Bytes;
 use ckb_types::core::{ScriptHashType, TransactionView};
 use ckb_types::packed::Transaction;
-use ckb_types::prelude::{IntoTransactionView, Pack};
+use ckb_types::prelude::{IntoTransactionView, Pack, Unpack};
 
 #[derive(Clone, Debug)]
 pub struct MultiSigSrv {
@@ -237,13 +237,13 @@ impl MultiSigSrv {
         }
     }
 
-    fn validate_outpoints(
+    async fn validate_outpoints(
         &self,
         outpoints: &[ckb_jsonrpc_types::OutPoint],
     ) -> Result<String, AppError> {
         let mut multi_sig_address = "".to_string();
         for outpoint in outpoints.iter().cloned() {
-            let cell_with_status = get_ckb_client().get_live_cell(outpoint, false).unwrap();
+            let cell_with_status = get_live_cell(outpoint, false).await.unwrap();
             if cell_with_status.status.ne(&"live".to_owned()) {
                 return Err(AppError::new(400).message("invalid outpoint - consumed"));
             }
@@ -304,7 +304,7 @@ impl MultiSigSrv {
         &self,
         json_tx: ckb_jsonrpc_types::TransactionView,
     ) -> Result<(), AppError> {
-        let client = get_ckb_client();
+        let client = get_ckb_client().await;
         let result = client.send_transaction(json_tx.inner, None);
 
         if let Err(err) = result {
@@ -328,7 +328,7 @@ impl MultiSigSrv {
                     .message("invalid transaction json")
             })?;
         let tx = Transaction::from(tx_info.clone().inner).into_view();
-        let tx_id = tx.hash().to_string();
+        let tx_id = tx_info.hash.to_string();
 
         let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
             .input_pts_iter()
@@ -336,7 +336,7 @@ impl MultiSigSrv {
             .collect();
 
         // validate outpoints status from CKB node
-        let multi_sig_address = self.validate_outpoints(&outpoints)?;
+        let multi_sig_address = self.validate_outpoints(&outpoints).await?;
 
         // Validate if user is one of multi-sig signers
         self.validate_signer(signer_address, &multi_sig_address)
@@ -457,7 +457,7 @@ impl MultiSigSrv {
         // it should be check threshold on cells instead of checking by tx
         // currently all cells is belong to single multi-sig address so we able
         // to use check threshold by txid
-        let multi_sig_address = self.validate_outpoints(&outpoints)?;
+        let multi_sig_address = self.validate_outpoints(&outpoints).await?;
 
         // Validate if user is one of multi-sig signers
         self.validate_signer(signer_address, &multi_sig_address)

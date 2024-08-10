@@ -205,7 +205,7 @@ impl MultiSigDao {
         // Create cells from tx info
         for outpoint in outpoints {
             let _stmt =
-            "INSERT INTO cells (multi_sig_address, outpoint, transaction_id, status) VALUES ($1, $2, 0);";
+            "INSERT INTO cells (multi_sig_address, outpoint, transaction_id, status) VALUES ($1, $2, $3, 0);";
             let stmt = db_transaction.prepare(_stmt).await?;
             db_transaction
                 .execute(&stmt, &[multi_sig_address, &outpoint, transaction_id])

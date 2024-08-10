@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS multi_sig_signers (
 CREATE INDEX signer_address_index ON multi_sig_signers (signer_address);
 
 CREATE TABLE IF NOT EXISTS multi_sig_info (
-  multi_sig_address VARCHAR(200) PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
+  multi_sig_address VARCHAR(200),
   threshold SMALLINT NOT NULL DEFAULT 1,
   signers SMALLINT NOT NULL DEFAULT 1,
   mutli_sig_witness_data VARCHAR(200) NOT NULL,
@@ -21,9 +22,10 @@ CREATE TABLE IF NOT EXISTS multi_sig_info (
 );
 
 CREATE TABLE IF NOT EXISTS cells (
-  multi_sig_address VARCHAR(200) PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
+  multi_sig_address VARCHAR(200),
   outpoint VARCHAR(100) NOT NULL,
-  transaction_id VARCHAR(66) NOT NULL,
+  transaction_id VARCHAR(100) NOT NULL,
   status SMALLINT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -31,7 +33,7 @@ CREATE TABLE IF NOT EXISTS cells (
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
-  transaction_id VARCHAR(66) PRIMARY KEY,
+  transaction_id VARCHAR(100) PRIMARY KEY,
   payload TEXT NOT NULL,
   status SMALLINT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -40,8 +42,8 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS signatures (
   signer_address VARCHAR(200) NOT NULL,
-  transaction_id VARCHAR(66) NOT NULL,
-  signature VARCHAR(130) NOT NULL,
+  transaction_id VARCHAR(100) NOT NULL,
+  signature VARCHAR(200) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
   PRIMARY KEY (signer_address, transaction_id)

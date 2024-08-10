@@ -4,6 +4,7 @@ use crate::config;
 use crate::serialize::error::AppError;
 use crate::serialize::multi_sig_account::SignerInfo;
 use anyhow::anyhow;
+use ckb_jsonrpc_types::CellWithStatus;
 use ckb_sdk::unlock::{MultisigConfig, ScriptSignError};
 use ckb_sdk::Address;
 use ckb_sdk::{rpc::CkbRpcClient, NetworkType};
@@ -14,9 +15,28 @@ use ckb_types::prelude::Builder;
 use ckb_types::prelude::{Entity, Pack};
 use ckb_types::H160;
 
-pub fn get_ckb_client() -> CkbRpcClient {
+pub async fn get_ckb_client() -> CkbRpcClient {
     let rpc_url: String = config::get("ckb_rpc");
-    CkbRpcClient::new(rpc_url.as_str())
+    let client = tokio::task::spawn_blocking(move || CkbRpcClient::new(&rpc_url))
+        .await
+        .expect("Failed to create CkbRpcClient");
+
+    client
+}
+
+pub async fn get_live_cell(
+    out_point: ckb_jsonrpc_types::OutPoint,
+    with_data: bool,
+) -> Result<CellWithStatus, ckb_sdk::rpc::RpcError> {
+    let rpc_url: String = config::get("ckb_rpc");
+    let result = tokio::task::spawn_blocking(move || {
+        let client = CkbRpcClient::new(&rpc_url);
+        return client.get_live_cell(out_point, with_data);
+    })
+    .await
+    .unwrap();
+
+    return result;
 }
 
 pub fn get_ckb_network() -> NetworkType {
