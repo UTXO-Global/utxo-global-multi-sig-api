@@ -19,7 +19,7 @@ use ckb_sdk::AddressPayload;
 use ckb_types::bytes::Bytes;
 use ckb_types::core::{ScriptHashType, TransactionView};
 use ckb_types::packed::Transaction;
-use ckb_types::prelude::{IntoTransactionView, Pack, Unpack};
+use ckb_types::prelude::{IntoTransactionView, Pack};
 
 #[derive(Clone, Debug)]
 pub struct MultiSigSrv {

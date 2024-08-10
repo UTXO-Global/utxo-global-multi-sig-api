@@ -17,11 +17,9 @@ use ckb_types::H160;
 
 pub async fn get_ckb_client() -> CkbRpcClient {
     let rpc_url: String = config::get("ckb_rpc");
-    let client = tokio::task::spawn_blocking(move || CkbRpcClient::new(&rpc_url))
+    tokio::task::spawn_blocking(move || CkbRpcClient::new(&rpc_url))
         .await
-        .expect("Failed to create CkbRpcClient");
-
-    client
+        .expect("Failed to create CkbRpcClient")
 }
 
 pub async fn get_live_cell(
@@ -29,14 +27,12 @@ pub async fn get_live_cell(
     with_data: bool,
 ) -> Result<CellWithStatus, ckb_sdk::rpc::RpcError> {
     let rpc_url: String = config::get("ckb_rpc");
-    let result = tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         let client = CkbRpcClient::new(&rpc_url);
-        return client.get_live_cell(out_point, with_data);
+        client.get_live_cell(out_point, with_data)
     })
     .await
-    .unwrap();
-
-    return result;
+    .unwrap()
 }
 
 pub fn get_ckb_network() -> NetworkType {
