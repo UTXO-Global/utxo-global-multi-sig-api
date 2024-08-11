@@ -20,18 +20,9 @@ CREATE TABLE IF NOT EXISTS multi_sig_info (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS cells (
-  multi_sig_address VARCHAR(200) PRIMARY KEY,
-  outpoint VARCHAR(100) NOT NULL,
-  transaction_id VARCHAR(66) NOT NULL,
-  status SMALLINT NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  CONSTRAINT unique_outpoint UNIQUE (outpoint)
-);
-
 CREATE TABLE IF NOT EXISTS transactions (
-  transaction_id VARCHAR(66) PRIMARY KEY,
+  transaction_id VARCHAR(100) PRIMARY KEY,
+  multi_sig_address VARCHAR(200),
   payload TEXT NOT NULL,
   status SMALLINT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -40,8 +31,8 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS signatures (
   signer_address VARCHAR(200) NOT NULL,
-  transaction_id VARCHAR(66) NOT NULL,
-  signature VARCHAR(130) NOT NULL,
+  transaction_id VARCHAR(100) NOT NULL,
+  signature VARCHAR(200) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
   PRIMARY KEY (signer_address, transaction_id)

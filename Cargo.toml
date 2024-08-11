@@ -46,9 +46,9 @@ tokio-postgres = { version = "0.7.10", features = ["with-chrono-0_4"] }
 deadpool-postgres = { version = "0.12.1", features = ["serde"] }
 tokio-pg-mapper = { version = "0.2.0", features = ["tokio-pg-mapper-derive"] }
 tokio-pg-mapper-derive = "0.2.0"
-ckb-sdk = "3.2.1"
-ckb-types = "0.116.1"
-ckb-jsonrpc-types = "0.116.1"
+ckb-sdk = "3.3.0"
+ckb-types = "0.117.0"
+ckb-jsonrpc-types = "0.117.0"
 anyhow = "1.0.86"
 hex = "0.4.3"
 log = "0.4.22"
@@ -56,6 +56,6 @@ openssl = { version = "0.10.64", features = ["vendored"] }
 rust-crypto = "0.2.36"
 ckb-crypto = "0.116.1"
 ckb-hash = "0.117.0"
-secp256k1 = "0.24.3"
+secp256k1 = "0.29.0"
 time = "0.3.36"
 reqwest = { version = "0.12.5", features = ["json"] }

@@ -1,5 +1,9 @@
 # utxo-global-multi-sig-api
 
+## run test
+
+cargo run --bin test_multisign
+
 ## Migrate DB
 
 Install Sqlx

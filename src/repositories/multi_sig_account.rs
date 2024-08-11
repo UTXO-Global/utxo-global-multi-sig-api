@@ -123,10 +123,8 @@ impl MultiSigDao {
         let client: Client = self.db.get().await?;
 
         let _stmt = "SELECT tx.* FROM transactions tx
-            LEFT JOIN cells
-                ON cells.transaction_id = tx.transaction_id
             LEFT JOIN multi_sig_signers mss
-                ON mss.multi_sig_address = cells.multi_sig_address
+                ON mss.multi_sig_address = tx.multi_sig_address
             WHERE mss.signer_address=$1
             OFFSET $2 LIMIT $3;";
         let stmt = client.prepare(_stmt).await?;
@@ -184,7 +182,6 @@ impl MultiSigDao {
     pub async fn create_new_transfer(
         &self,
         multi_sig_address: &String,
-        outpoints: Vec<String>,
         transaction_id: &String,
         payload: &String,
         signer_address: &String,
@@ -196,21 +193,11 @@ impl MultiSigDao {
 
         // Create tx
         let _stmt =
-            "INSERT INTO transactions (transaction_id, payload, status) VALUES ($1, $2, 0);";
+            "INSERT INTO transactions (transaction_id, multi_sig_address, payload, status) VALUES ($1, $2, $3, 0);";
         let stmt = db_transaction.prepare(_stmt).await?;
         db_transaction
-            .execute(&stmt, &[transaction_id, payload])
+            .execute(&stmt, &[transaction_id, multi_sig_address, payload])
             .await?;
-
-        // Create cells from tx info
-        for outpoint in outpoints {
-            let _stmt =
-            "INSERT INTO cells (multi_sig_address, outpoint, transaction_id, status) VALUES ($1, $2, 0);";
-            let stmt = db_transaction.prepare(_stmt).await?;
-            db_transaction
-                .execute(&stmt, &[multi_sig_address, &outpoint, transaction_id])
-                .await?;
-        }
 
         // Add first signatures - requester of this new transaction
         let _stmt =
@@ -224,6 +211,7 @@ impl MultiSigDao {
 
         Ok(CkbTransaction {
             transaction_id: transaction_id.clone(),
+            multi_sig_address: multi_sig_address.clone(),
             payload: payload.clone(),
             status: 0,
             created_at: Utc::now().naive_utc(),
@@ -245,6 +233,7 @@ impl MultiSigDao {
     pub async fn add_signature(
         &self,
         transaction_id: &String,
+        multi_sig_address: &str,
         payload: &str,
         signer_address: &String,
         signature: &String,
@@ -261,6 +250,7 @@ impl MultiSigDao {
 
         Ok(CkbTransaction {
             transaction_id: transaction_id.clone(),
+            multi_sig_address: multi_sig_address.to_owned(),
             payload: payload.to_owned(),
             status: 0,
             created_at: Utc::now().naive_utc(),
@@ -309,7 +299,6 @@ impl MultiSigDao {
 
     pub async fn sync_status_after_broadcast(
         &self,
-        outpoints: Vec<String>,
         transaction_id: &String,
         payload: &String,
     ) -> Result<CkbTransaction, PoolError> {
@@ -318,30 +307,16 @@ impl MultiSigDao {
         let db_transaction = client.transaction().await?;
 
         // Update tx
-        let _stmt = "UPDATE transactions SET status = 1, payload = $2  WHERE transaction_id = $1;";
+        let _stmt = "UPDATE transactions SET status = 1, payload = $2  WHERE transaction_id = $1 RETURNING *;";
         let stmt = db_transaction.prepare(_stmt).await?;
-        db_transaction
-            .execute(&stmt, &[transaction_id, payload])
-            .await?;
-
-        // Update cells from tx info
-        for outpoint in outpoints {
-            let _stmt = "UPDATE cells SET status = 1 WHERE outpoint = $1 AND transaction_id = $2;";
-            let stmt = db_transaction.prepare(_stmt).await?;
-            db_transaction
-                .execute(&stmt, &[&outpoint, transaction_id])
-                .await?;
-        }
+        let tx_updated = db_transaction
+            .query_one(&stmt, &[transaction_id, payload])
+            .await
+            .map(|row| CkbTransaction::from_row(row).unwrap())?;
 
         db_transaction.commit().await?;
 
-        Ok(CkbTransaction {
-            transaction_id: transaction_id.clone(),
-            payload: payload.clone(),
-            status: 1,
-            created_at: Utc::now().naive_utc(),
-            updated_at: Utc::now().naive_utc(),
-        })
+        Ok(tx_updated)
     }
 
     // Invite

@@ -103,7 +103,7 @@ impl UserSrv {
                 let message = format!("Nervos Message:utxo.global login {}", nonce);
                 let message_hash = self.hash_ckb(message.as_bytes());
                 let secp_message =
-                    Message::from_slice(&message_hash).expect("Invalid message hash");
+                    Message::from_digest_slice(&message_hash).expect("Invalid message hash");
 
                 let sig_bytes = hex::decode(signature).expect("Invalid signature hex");
                 let r = &sig_bytes[0..32];
