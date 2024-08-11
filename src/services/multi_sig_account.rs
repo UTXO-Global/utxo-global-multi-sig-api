@@ -8,6 +8,7 @@ use crate::repositories::db::DB_POOL;
 use crate::serialize::multi_sig_account::{
     InviteInfo, InviteStatusReq, ListSignerRes, MultiSigAccountUpdateReq,
 };
+use crate::serialize::transaction::TransactionInfo;
 use crate::{
     models::multi_sig_account::MultiSigInfo,
     repositories::multi_sig_account::MultiSigDao,
@@ -19,7 +20,7 @@ use ckb_sdk::AddressPayload;
 use ckb_types::bytes::Bytes;
 use ckb_types::core::{ScriptHashType, TransactionView};
 use ckb_types::packed::Transaction;
-use ckb_types::prelude::{IntoTransactionView, Pack};
+use ckb_types::prelude::{IntoTransactionView, Pack, Unpack};
 
 #[derive(Clone, Debug)]
 pub struct MultiSigSrv {
@@ -87,13 +88,63 @@ impl MultiSigSrv {
     pub async fn request_list_transactions(
         &self,
         signer_address: &str,
+        multi_sig_address: &str,
         offset: i32,
         limit: i32,
-    ) -> Result<Vec<CkbTransaction>, AppError> {
-        self.multi_sig_dao
-            .request_list_transactions(&signer_address.to_owned(), offset, limit)
+    ) -> Result<Vec<TransactionInfo>, AppError> {
+        let res = self
+            .multi_sig_dao
+            .request_list_transactions(
+                &signer_address.to_owned(),
+                &multi_sig_address.to_owned(),
+                offset,
+                limit,
+            )
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
+            .unwrap();
+
+        let mut results: Vec<TransactionInfo> = vec![];
+        for tx in res {
+            let tx_info: ckb_jsonrpc_types::TransactionView =
+                serde_json::from_str(tx.payload.as_str()).map_err(|err| {
+                    AppError::new(400)
+                        .cause(err)
+                        .message("invalid transaction json")
+                })?;
+            let tx_view = Transaction::from(tx_info.clone().inner).into_view();
+            let first_output = tx_view.outputs().get(0).unwrap();
+            let lock = first_output.lock();
+            let address = Address::new(
+                get_ckb_network(),
+                AddressPayload::new_full(
+                    lock.hash_type().try_into().unwrap(),
+                    lock.code_hash(),
+                    lock.args().unpack(),
+                ),
+                true,
+            );
+
+            let signatures = self
+                .multi_sig_dao
+                .get_list_signatures_by_txid(&tx.transaction_id)
+                .await
+                .unwrap();
+
+            results.push(TransactionInfo {
+                transaction_id: tx.transaction_id,
+                multi_sig_address: tx.multi_sig_address,
+                to_address: address.to_string(),
+                confirmed: signatures
+                    .iter()
+                    .map(|sig| sig.signer_address.clone())
+                    .collect(),
+                status: tx.status,
+                payload: tx.payload,
+                created_at: tx.created_at.to_string(),
+            })
+        }
+        Ok(results)
     }
 
     pub async fn create_new_account(

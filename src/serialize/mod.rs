@@ -11,4 +11,5 @@ pub struct Claims {
 pub mod address_book;
 pub mod error;
 pub mod multi_sig_account;
+pub mod transaction;
 pub mod user;
