@@ -141,6 +141,7 @@ impl MultiSigSrv {
                     .collect(),
                 status: tx.status,
                 payload: tx.payload,
+                created_at: tx.created_at.to_string(),
             })
         }
         Ok(results)

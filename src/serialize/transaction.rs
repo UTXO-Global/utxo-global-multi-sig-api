@@ -8,4 +8,5 @@ pub struct TransactionInfo {
     pub confirmed: Vec<String>,
     pub status: i16,
     pub payload: String,
+    pub created_at: String,
 }
