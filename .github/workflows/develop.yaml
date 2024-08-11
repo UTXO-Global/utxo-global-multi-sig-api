@@ -2,7 +2,7 @@ name: Develop
 
 on:
   push:
-    branches: [feat/**]
+    branches: [tmp]
 
 env:
   CURRENT_SERVICE: ${{ github.event.repository.name }}

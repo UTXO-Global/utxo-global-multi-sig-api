@@ -16,7 +16,8 @@ use ckb_types::prelude::{Entity, Pack};
 use ckb_types::H160;
 
 pub async fn get_ckb_client() -> CkbRpcClient {
-    let rpc_url: String = config::get("ckb_rpc");
+    // TODO: Tạm thời hardcode, thứ 2 chỉnh env lại rồi remove
+    let rpc_url: String = "https://testnet.ckb.dev/rpc".to_owned(); // config::get("ckb_rpc");
     tokio::task::spawn_blocking(move || CkbRpcClient::new(&rpc_url))
         .await
         .expect("Failed to create CkbRpcClient")
@@ -26,7 +27,8 @@ pub async fn get_live_cell(
     out_point: ckb_jsonrpc_types::OutPoint,
     with_data: bool,
 ) -> Result<CellWithStatus, ckb_sdk::rpc::RpcError> {
-    let rpc_url: String = config::get("ckb_rpc");
+    // TODO: Tạm thời hardcode, thứ 2 chỉnh env lại rồi remove
+    let rpc_url: String = "https://testnet.ckb.dev/rpc".to_owned(); // config::get("ckb_rpc");
     tokio::task::spawn_blocking(move || {
         let client = CkbRpcClient::new(&rpc_url);
         client.get_live_cell(out_point, with_data)
