@@ -117,6 +117,7 @@ impl MultiSigDao {
     pub async fn request_list_transactions(
         &self,
         signer_address: &String,
+        multisig_address: &String,
         offset: i32,
         limit: i32,
     ) -> Result<Vec<CkbTransaction>, PoolError> {
@@ -125,12 +126,20 @@ impl MultiSigDao {
         let _stmt = "SELECT tx.* FROM transactions tx
             LEFT JOIN multi_sig_signers mss
                 ON mss.multi_sig_address = tx.multi_sig_address
-            WHERE mss.signer_address=$1
-            OFFSET $2 LIMIT $3;";
+            WHERE mss.signer_address=$1 and tx.multi_sig_address = $2
+            OFFSET $3 LIMIT $4;";
         let stmt = client.prepare(_stmt).await?;
 
         let txs = client
-            .query(&stmt, &[&signer_address, &offset, &limit])
+            .query(
+                &stmt,
+                &[
+                    &signer_address,
+                    &multisig_address,
+                    &(offset as i64),
+                    &(limit as i64),
+                ],
+            )
             .await?
             .iter()
             .map(|row| CkbTransaction::from_row_ref(row).unwrap())

@@ -1,9 +1,5 @@
 # utxo-global-multi-sig-api
 
-## run test
-
-cargo run --bin test_multisign
-
 ## Migrate DB
 
 Install Sqlx
@@ -22,4 +18,18 @@ Run Migrate
 
 ```
 sqlx migrate run
+```
+
+## run test
+
+```
+cargo run --bin test_addrress
+cargo run --bin test_multisign
+cargo run --bin test_flow
+```
+
+## Check clippy
+
+```
+cargo clippy -- -D warnings
 ```

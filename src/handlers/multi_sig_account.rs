@@ -109,12 +109,19 @@ async fn request_list_accounts(
 
 async fn request_list_transactions(
     query: web::Query<TransactionFilters>,
-    signer_address: web::Path<String>,
+    multisig_address: web::Path<String>,
     multi_sig_srv: web::Data<MultiSigSrv>,
+    http_req: HttpRequest,
+    _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
     match multi_sig_srv
         .request_list_transactions(
-            &signer_address,
+            &user_address,
+            &multisig_address,
             query.offset.unwrap_or(0),
             query.limit.unwrap_or(10),
         )
