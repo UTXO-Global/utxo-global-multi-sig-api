@@ -289,12 +289,11 @@ impl MultiSigSrv {
 
     async fn sync_status_after_broadcast(
         &self,
-        outpoints: Vec<String>,
         txid: &String,
         payload: &String,
     ) -> Result<(), AppError> {
         self.multi_sig_dao
-            .sync_status_after_broadcast(outpoints, txid, payload)
+            .sync_status_after_broadcast(txid, payload)
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
         Ok(())
@@ -343,16 +342,10 @@ impl MultiSigSrv {
             .await?;
         let multi_sig_info = self.request_multi_sig_info(&multi_sig_address).await?;
 
-        let outpoints: Vec<String> = outpoints
-            .into_iter()
-            .map(|outpoint| format!("{}:{}", outpoint.tx_hash, outpoint.index.value()))
-            .collect();
-
         let ckb_tx = self
             .multi_sig_dao
             .create_new_transfer(
                 &multi_sig_address.to_string(),
-                outpoints.clone(),
                 &tx_id,
                 payload,
                 signer_address,
@@ -362,8 +355,7 @@ impl MultiSigSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
         // check if threshold is one => broadcast tx immediately
-        self.check_threshold(&multi_sig_info, &tx, outpoints)
-            .await?;
+        self.check_threshold(&multi_sig_info, &tx).await?;
 
         Ok(ckb_tx)
     }
@@ -384,7 +376,6 @@ impl MultiSigSrv {
         &self,
         multi_sig_info: &MultiSigInfo,
         tx: &TransactionView,
-        outpoints: Vec<String>,
     ) -> Result<(), AppError> {
         let tx_id = tx.hash().to_string();
 
@@ -420,7 +411,6 @@ impl MultiSigSrv {
             self.broadcast_tx(json_tx.clone()).await?;
 
             self.sync_status_after_broadcast(
-                outpoints,
                 &tx_id,
                 &serde_json::to_string_pretty(&json_tx).unwrap(),
             )
@@ -466,19 +456,18 @@ impl MultiSigSrv {
 
         let ckb_tx: CkbTransaction = self
             .multi_sig_dao
-            .add_signature(&tx_id, &ckb_tx.payload, signer_address, signature)
+            .add_signature(
+                &tx_id,
+                &multi_sig_address,
+                &ckb_tx.payload,
+                signer_address,
+                signature,
+            )
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
-        // Update outpoints + txid
-        let outpoints: Vec<String> = outpoints
-            .into_iter()
-            .map(|outpoint| format!("{}:{}", outpoint.tx_hash, outpoint.index.value()))
-            .collect();
-
         // Check threshold sig
-        self.check_threshold(&multi_sig_info, &tx, outpoints)
-            .await?;
+        self.check_threshold(&multi_sig_info, &tx).await?;
 
         Ok(ckb_tx)
     }

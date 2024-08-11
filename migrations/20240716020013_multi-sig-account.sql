@@ -20,19 +20,9 @@ CREATE TABLE IF NOT EXISTS multi_sig_info (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS cells (
-  id SERIAL PRIMARY KEY,
-  multi_sig_address VARCHAR(200),
-  outpoint VARCHAR(100) NOT NULL,
-  transaction_id VARCHAR(100) NOT NULL,
-  status SMALLINT NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  CONSTRAINT unique_outpoint UNIQUE (outpoint)
-);
-
 CREATE TABLE IF NOT EXISTS transactions (
   transaction_id VARCHAR(100) PRIMARY KEY,
+  multi_sig_address VARCHAR(200),
   payload TEXT NOT NULL,
   status SMALLINT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
