@@ -4,20 +4,42 @@ use crate::config;
 use crate::serialize::error::AppError;
 use crate::serialize::multi_sig_account::SignerInfo;
 use anyhow::anyhow;
-use ckb_jsonrpc_types::CellWithStatus;
+use ckb_jsonrpc_types::{CellWithStatus, OutputsValidator, Transaction};
 use ckb_sdk::unlock::{MultisigConfig, ScriptSignError};
-use ckb_sdk::Address;
 use ckb_sdk::{rpc::CkbRpcClient, NetworkType};
+use ckb_sdk::{Address, RpcError};
 use ckb_types::bytes::Bytes;
 use ckb_types::core::TransactionView;
 use ckb_types::packed::WitnessArgs;
 use ckb_types::prelude::Builder;
 use ckb_types::prelude::{Entity, Pack};
-use ckb_types::H160;
+use ckb_types::{H160, H256};
+
+pub const CKB_TESTNET_EXPLORER_API: &str = "https://testnet-api.explorer.nervos.org/api";
+pub const CKB_MAINNET_EXPLORER_API: &str = "https://mainnet-api.explorer.nervos.org/api";
+pub const CKB_TESTNET_RPC: &str = "https://testnet.ckb.dev/rpc";
+pub const CKB_MAINNET_RPC: &str = "https://mainnet.ckb.dev/rpc";
+
+pub fn get_explorer_api_url() -> String {
+    let network = get_ckb_network();
+    if network == NetworkType::Mainnet {
+        return CKB_MAINNET_EXPLORER_API.to_owned();
+    }
+
+    CKB_TESTNET_EXPLORER_API.to_owned()
+}
+
+pub fn get_rpc() -> String {
+    let network = get_ckb_network();
+    if network == NetworkType::Mainnet {
+        return CKB_MAINNET_RPC.to_owned();
+    }
+
+    CKB_TESTNET_RPC.to_owned()
+}
 
 pub async fn get_ckb_client() -> CkbRpcClient {
-    // TODO: Tạm thời hardcode, thứ 2 chỉnh env lại rồi remove
-    let rpc_url: String = "https://testnet.ckb.dev/rpc".to_owned(); // config::get("ckb_rpc");
+    let rpc_url: String = get_rpc();
     tokio::task::spawn_blocking(move || CkbRpcClient::new(&rpc_url))
         .await
         .expect("Failed to create CkbRpcClient")
@@ -27,8 +49,7 @@ pub async fn get_live_cell(
     out_point: ckb_jsonrpc_types::OutPoint,
     with_data: bool,
 ) -> Result<CellWithStatus, ckb_sdk::rpc::RpcError> {
-    // TODO: Tạm thời hardcode, thứ 2 chỉnh env lại rồi remove
-    let rpc_url: String = "https://testnet.ckb.dev/rpc".to_owned(); // config::get("ckb_rpc");
+    let rpc_url: String = get_rpc();
     tokio::task::spawn_blocking(move || {
         let client = CkbRpcClient::new(&rpc_url);
         client.get_live_cell(out_point, with_data)
@@ -43,6 +64,19 @@ pub fn get_ckb_network() -> NetworkType {
         "mainnet" => NetworkType::Mainnet,
         _ => NetworkType::Testnet,
     }
+}
+
+pub async fn send_transaction(
+    tx: Transaction,
+    outputs_validator: Option<OutputsValidator>,
+) -> Result<H256, RpcError> {
+    let rpc_url: String = get_rpc();
+    tokio::task::spawn_blocking(move || {
+        let client = CkbRpcClient::new(&rpc_url);
+        client.send_transaction(tx, outputs_validator)
+    })
+    .await
+    .unwrap()
 }
 
 pub fn add_signature_to_witness(
@@ -79,6 +113,7 @@ pub fn add_signature_to_witness(
         .to_opt()
         .map(|data| data.raw_data().as_ref().to_vec())
         .unwrap_or(zero_lock);
+
     if lock_field.len() != config_data.len() + threshold * 65 {
         return Err(ScriptSignError::Other(anyhow!(
             "invalid witness lock field length: {}, expected: {}",
@@ -86,6 +121,7 @@ pub fn add_signature_to_witness(
             config_data.len() + threshold * 65,
         )));
     }
+
     for signature in signatures {
         let mut idx = config_data.len();
         while idx < lock_field.len() {
@@ -98,7 +134,7 @@ pub fn add_signature_to_witness(
             }
             idx += 65;
         }
-        if idx >= lock_field.len() {
+        if idx > lock_field.len() {
             return Err(ScriptSignError::TooManySignatures);
         }
     }

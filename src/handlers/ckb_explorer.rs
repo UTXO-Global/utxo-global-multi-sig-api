@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse};
 use reqwest::{header, Client};
 use serde_json::Value;
 
-use crate::{config, serialize::error::AppError};
+use crate::{repositories::ckb::get_explorer_api_url, serialize::error::AppError};
 
 // Proxy request đến server đích
 async fn proxy_request(
@@ -10,7 +10,7 @@ async fn proxy_request(
     path: &str,
     body: Option<String>,
 ) -> Result<HttpResponse, AppError> {
-    let ckb_api_url: String = config::get("ckb_explorer_api");
+    let ckb_api_url: String = get_explorer_api_url();
     let endpoint: String = format!("{}/{}", ckb_api_url, path.to_owned());
     let client = Client::new();
     let mut request_builder = match method {
