@@ -5,15 +5,16 @@ on:
     branches: [staging]
   pull_request:
     branches: [staging]
-#jobs:
-#  fmt_and_clippy_check:
-#    runs-on: ubuntu-latest
 
-#    steps:
-#    - uses: actions/checkout@v3
+jobs:
+  fmt_and_clippy_check:
+    runs-on: ubuntu-latest
 
-#    - name: Run rustfmt
-#      run: cargo fmt -- --check
+    steps:
+      - uses: actions/checkout@v3
 
-#    - name: Run clippy
-#      run: cargo clippy -- -D warnings
+      - name: Run rustfmt
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
