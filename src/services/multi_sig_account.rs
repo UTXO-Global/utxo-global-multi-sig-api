@@ -43,25 +43,12 @@ impl MultiSigSrv {
     ) -> Result<MultiSigInfo, AppError> {
         match self
             .multi_sig_dao
-            .get_signer(&address.to_string(), &signer.to_string())
+            .request_multi_sig_info_by_user(address, signer)
             .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?
         {
-            Ok(s) => {
-                if s.is_some() {
-                    match self
-                        .multi_sig_dao
-                        .request_multi_sig_info(&address.to_owned())
-                        .await
-                        .map_err(|err| AppError::new(500).message(&err.to_string()))?
-                    {
-                        Some(info) => Ok(info),
-                        None => Err(AppError::new(404).message("not found")),
-                    }
-                } else {
-                    Err(AppError::new(404).message("not found"))
-                }
-            }
-            Err(err) => Err(AppError::new(404).message(&err.to_string())),
+            Some(info) => Ok(info),
+            None => Err(AppError::new(404).message("not found")),
         }
     }
 
@@ -89,36 +76,23 @@ impl MultiSigSrv {
 
         match self
             .multi_sig_dao
-            .get_signer(&address.to_string(), &signer.to_string())
+            .request_list_signers(&address.to_owned(), &signer.to_owned())
             .await
         {
-            Ok(s) => {
-                if s.is_some() {
-                    match self
-                        .multi_sig_dao
-                        .request_list_signers(&address.to_owned())
-                        .await
-                    {
-                        Ok(signers) => result.signers = signers,
-                        Err(err) => return Err(AppError::new(500).message(&err.to_string())),
-                    }
-
-                    match self
-                        .multi_sig_dao
-                        .get_invites_by_multisig(&address.to_owned())
-                        .await
-                    {
-                        Ok(invites) => result.invites = invites,
-                        Err(err) => return Err(AppError::new(500).message(&err.to_string())),
-                    }
-
-                    Ok(result)
-                } else {
-                    Err(AppError::new(404).message("not found"))
-                }
-            }
-            Err(err) => Err(AppError::new(404).message(&err.to_string())),
+            Ok(signers) => result.signers = signers,
+            Err(err) => return Err(AppError::new(500).message(&err.to_string())),
         }
+
+        match self
+            .multi_sig_dao
+            .get_invites_by_multisig(&address.to_owned())
+            .await
+        {
+            Ok(invites) => result.invites = invites,
+            Err(err) => return Err(AppError::new(500).message(&err.to_string())),
+        }
+
+        Ok(result)
     }
 
     pub async fn request_list_accounts(
