@@ -47,10 +47,12 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     // ------  1. Create new multi-sig account from multiple account ------
     let multisig_config = MultisigConfig::new_with(
         vec![
-            // ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqtnx6ct4yqxsn9nevq0p4rdfajvpx222cs69m46a
-            h160!("0x7336b0ba900684cb3cb00f0d46d4f64c0994a562"),
-            // ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sq2hynq78yj62grfgnt48fhnakhdl9mawlcylxhum
-            h160!("0x5724c1e3925a5206944d753a6f3edaedf977d77f"),
+            // ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqd20cjzl05a0w0wj99lszmdzfndaqdcruq4lap8z
+            h160!("0xaa7e242fbe9d7b9ee914bf80b6d1266de81b81f0"),
+            // ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqf0hg6dacn9q2qtgv2t74sdfc7t9ke3z9spvtdsf
+            h160!("0x2fba34dee2650280b4314bf560d4e3cb2db31116"),
+            // ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq0em8544fda3klhfynw89d7ctjmqhenmlqq949sq
+            h160!("0xf9d9e95aa5bd8dbf74926e395bec2e5b05f33dfc"),
         ],
         0,
         2,
@@ -61,15 +63,21 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     // Get multi-sig config
     let (multi_sig_address, multi_sig_witness_data) = get_multisig_config(vec![
         SignerInfo{
-            address: "ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqtnx6ct4yqxsn9nevq0p4rdfajvpx222cs69m46a".to_string(),
+            address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqd20cjzl05a0w0wj99lszmdzfndaqdcruq4lap8z".to_string(),
             name: "Test 1".to_owned()
         },
         SignerInfo{
-            address: "ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sq2hynq78yj62grfgnt48fhnakhdl9mawlcylxhum".to_string(),
+            address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqf0hg6dacn9q2qtgv2t74sdfc7t9ke3z9spvtdsf".to_string(),
+            name: "Test 1".to_owned()
+        },
+        SignerInfo{
+            address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq0em8544fda3klhfynw89d7ctjmqhenmlqq949sq".to_string(),
             name: "Test 1".to_owned()
         }
         ,
     ], 2).unwrap();
+
+    let multisig_witness_bytes_len = multi_sig_witness_data.len();
 
     assert_eq!(sender, multi_sig_address);
     assert_eq!(
@@ -83,8 +91,8 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     // ------ 3. Collect signatures into tx_group ------
 
     // signer 1
-    let private_key1 = h256!("0x4fd809631a6aa6e3bb378dd65eae5d71df895a82c91a615a1e8264741515c79c");
-    let signer1 = TransactionSigner::new(&network_info);
+    let private_key1 = h256!("0x0837342ef863227453f4b6f371a2c544fd2becb76c0b2994e4b0bcf00243e86f");
+    let signer1: TransactionSigner = TransactionSigner::new(&network_info);
     signer1.sign_transaction(
         &mut tx_with_groups,
         &SignContexts::new_multisig_h256(&private_key1, multisig_config.clone())?,
@@ -92,7 +100,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
 
     // signer 2
     let signer2 = TransactionSigner::new(&network_info);
-    let private_key2 = h256!("0x7438f7b35c355e3d2fb9305167a31a72d22ddeafb80a21cc99ff6329d92e8087");
+    let private_key2 = h256!("0xe9698bbc8b09b2032266fe637c5aa4c5419269fba5cc7ed83cb304b0e8689eef");
     signer2.sign_transaction(
         &mut tx_with_groups,
         &SignContexts::new_multisig_h256(&private_key2, multisig_config.clone())?,
@@ -110,13 +118,14 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     );
     let witness_full = witness;
     let tx_hash = json_tx.hash;
+    println!("witness full sign by lib {}", witness_full);
 
     // ------ 3.2 Collect signatures into seperate tx_group, to collect signature seperately ------
 
     let mut tx_with_groups = get_tx_group_with_script(&multisig_config);
     // signer 2
     let signer2 = TransactionSigner::new(&network_info);
-    let private_key2 = h256!("0x7438f7b35c355e3d2fb9305167a31a72d22ddeafb80a21cc99ff6329d92e8087");
+    let private_key2 = h256!("0xe9698bbc8b09b2032266fe637c5aa4c5419269fba5cc7ed83cb304b0e8689eef");
     signer2.sign_transaction(
         &mut tx_with_groups,
         &SignContexts::new_multisig_h256(&private_key2, multisig_config.clone())?,
@@ -132,15 +141,25 @@ fn main() -> Result<(), Box<dyn StdErr>> {
             .clone()
             .into_bytes(),
     );
-    println!("sig2: {}", &witness[128..256]);
+    println!("witness2: {}", &witness);
+    println!(
+        "sig2: {}",
+        &witness[(multi_sig_witness_data.len() + 40)..(128 + (multisig_witness_bytes_len + 40))]
+    );
 
     let mut sig2 = vec![0; 65];
-    sig2.clone_from_slice(hex::decode(&witness[128..258]).unwrap().as_ref());
+    sig2.clone_from_slice(
+        hex::decode(
+            &witness[(multisig_witness_bytes_len + 40)..(130 + (multisig_witness_bytes_len + 40))],
+        )
+        .unwrap()
+        .as_ref(),
+    );
     let sig2 = Bytes::from(sig2);
 
     let mut tx_with_groups = get_tx_group_with_script(&multisig_config);
     // signer 1
-    let private_key1 = h256!("0x4fd809631a6aa6e3bb378dd65eae5d71df895a82c91a615a1e8264741515c79c");
+    let private_key1 = h256!("0x0837342ef863227453f4b6f371a2c544fd2becb76c0b2994e4b0bcf00243e86f");
     let signer1 = TransactionSigner::new(&network_info);
 
     signer1.sign_transaction(
@@ -160,13 +179,24 @@ fn main() -> Result<(), Box<dyn StdErr>> {
             .into_bytes(),
     );
 
-    println!("sig1: {}", &witness[128..256]);
+    println!("witness1: {}", &witness);
+    println!(
+        "sig1: {}",
+        &witness[(multisig_witness_bytes_len + 40)..(128 + (multisig_witness_bytes_len + 40))]
+    );
 
     let mut sig1 = vec![0; 65];
-    sig1.clone_from_slice(hex::decode(&witness[128..258]).unwrap().as_ref());
+    sig1.clone_from_slice(
+        hex::decode(
+            &witness[(multisig_witness_bytes_len + 40)..(130 + (multisig_witness_bytes_len + 40))],
+        )
+        .unwrap()
+        .as_ref(),
+    );
     let sig1 = Bytes::from(sig1);
 
     let signatures = vec![sig2, sig1];
+    println!("signatures {:?}", signatures);
     let tx = Transaction::from(json_tx.clone().inner).into_view();
     let tx = add_signature_to_witness(2, &tx, &multi_sig_witness_data, signatures).unwrap();
     let json_tx_2 = ckb_jsonrpc_types::TransactionView::from(tx);
@@ -181,10 +211,13 @@ fn main() -> Result<(), Box<dyn StdErr>> {
             .clone()
             .into_bytes(),
     );
+
+    println!("witness {}", witness);
+
     assert_eq!(witness_full, witness);
     assert_eq!(tx_hash, json_tx_2.hash);
 
     println!("tx: {}", serde_json::to_string_pretty(&json_tx_2).unwrap());
-
+    // send_transaction(tx, None);
     Ok(())
 }

@@ -9,4 +9,5 @@ pub struct TransactionInfo {
     pub status: i16,
     pub payload: String,
     pub created_at: String,
+    pub amount: u64,
 }

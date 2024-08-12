@@ -2,7 +2,7 @@ use crate::models::multi_sig_invite::MultiSigInviteStatus;
 use crate::models::multi_sig_tx::CkbTransaction;
 use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
-    add_signature_to_witness, get_ckb_client, get_ckb_network, get_live_cell, get_multisig_config,
+    add_signature_to_witness, get_ckb_network, get_live_cell, get_multisig_config, send_transaction,
 };
 use crate::repositories::db::DB_POOL;
 use crate::serialize::multi_sig_account::{
@@ -141,6 +141,7 @@ impl MultiSigSrv {
                     .collect(),
                 status: tx.status,
                 payload: tx.payload,
+                amount: first_output.capacity().unpack(),
                 created_at: tx.created_at.to_string(),
             })
         }
@@ -354,8 +355,8 @@ impl MultiSigSrv {
         &self,
         json_tx: ckb_jsonrpc_types::TransactionView,
     ) -> Result<(), AppError> {
-        let client = get_ckb_client().await;
-        let result = client.send_transaction(json_tx.inner, None);
+        let result: Result<ckb_types::H256, ckb_sdk::RpcError> =
+            send_transaction(json_tx.inner, None).await;
 
         if let Err(err) = result {
             log::error!(target: "multi_sig_service", "Submit tx failed: {err:?}");
@@ -428,7 +429,7 @@ impl MultiSigSrv {
         multi_sig_info: &MultiSigInfo,
         tx: &TransactionView,
     ) -> Result<(), AppError> {
-        let tx_id = tx.hash().to_string();
+        let tx_id = hex::encode(tx.hash().raw_data());
 
         // check if threshold is reached => broadcast tx
         let ckb_signatures = self
@@ -442,8 +443,10 @@ impl MultiSigSrv {
         {
             let signatures = ckb_signatures
                 .iter()
-                .map(|s| Bytes::from(s.signature.clone()))
+                .map(|s| Bytes::from(hex::decode(s.signature.clone()).unwrap()))
                 .collect();
+
+            println!("{:?}", signatures);
 
             // Add Signatures to witness
             let tx = add_signature_to_witness(
@@ -474,7 +477,7 @@ impl MultiSigSrv {
     pub async fn submit_signature(
         &self,
         signer_address: &String,
-        signature: &String,
+        signature: &str,
         txid: &str,
     ) -> Result<CkbTransaction, AppError> {
         let ckb_tx = self.get_tx_by_hash(txid).await?;
@@ -487,7 +490,7 @@ impl MultiSigSrv {
                     .message("invalid transaction json")
             })?;
         let tx = Transaction::from(tx_info.clone().inner).into_view();
-        let tx_id = tx.hash().to_string();
+        let tx_id = tx_info.hash.to_string();
 
         let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
             .input_pts_iter()
@@ -512,7 +515,7 @@ impl MultiSigSrv {
                 &multi_sig_address,
                 &ckb_tx.payload,
                 signer_address,
-                signature,
+                &signature.to_owned(),
             )
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;

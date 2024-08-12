@@ -2,19 +2,19 @@ name: Rust Format Check
 
 on:
   push:
-    branches: [ staging ]
+    branches: [staging]
   pull_request:
-    branches: [ staging ]
+    branches: [staging]
 
 jobs:
   fmt_and_clippy_check:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Run rustfmt
-      run: cargo fmt -- --check
-      
-    - name: Run clippy
-      run: cargo clippy -- -D warnings 
+      - name: Run rustfmt
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings

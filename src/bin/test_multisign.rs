@@ -20,14 +20,15 @@ fn main() -> Result<(), Box<dyn StdErr>> {
 
     let multisig_config = MultisigConfig::new_with(
         vec![
-            h160!("0x7336b0ba900684cb3cb00f0d46d4f64c0994a562"),
-            h160!("0x5724c1e3925a5206944d753a6f3edaedf977d77f"),
+            h160!("0xaa7e242fbe9d7b9ee914bf80b6d1266de81b81f0"),
+            h160!("0x2fba34dee2650280b4314bf560d4e3cb2db31116"),
+            h160!("0xf9d9e95aa5bd8dbf74926e395bec2e5b05f33dfc"),
         ],
         0,
         2,
     )?;
     let sender = multisig_config.to_address(network_info.network_type, None);
-    let receiver = Address::from_str("ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8keemy2p5uu0g0gn8cd4ju23s5269qk8rg4r")?;
+    let receiver = Address::from_str("ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqgnf80gpm2klvxhq3gt848ag67s6mztldsvt4nh0")?;
     println!("arg {:?}", hex::encode(sender.payload().args()));
 
     // Query to RPC to get the available cells
@@ -44,23 +45,29 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     println!("tx: {}", serde_json::to_string_pretty(&json_tx).unwrap());
 
     let signer2 = TransactionSigner::new(&network_info);
-    let private_key2 = h256!("0x7438f7b35c355e3d2fb9305167a31a72d22ddeafb80a21cc99ff6329d92e8087");
+    let private_key2 = h256!("0xe9698bbc8b09b2032266fe637c5aa4c5419269fba5cc7ed83cb304b0e8689eef");
     signer2.sign_transaction(
         &mut tx_with_groups,
         &SignContexts::new_multisig_h256(&private_key2, multisig_config.clone())?,
     )?;
     let json_tx = ckb_jsonrpc_types::TransactionView::from(tx_with_groups.get_tx_view().clone());
-    println!("tx: {}", serde_json::to_string_pretty(&json_tx).unwrap());
+    println!(
+        "tx signer 1: {}",
+        serde_json::to_string_pretty(&json_tx).unwrap()
+    );
 
-    let private_key1 = h256!("0x4fd809631a6aa6e3bb378dd65eae5d71df895a82c91a615a1e8264741515c79c");
-    let signer1 = TransactionSigner::new(&network_info);
+    let private_key1 = h256!("0x0837342ef863227453f4b6f371a2c544fd2becb76c0b2994e4b0bcf00243e86f");
+    let signer1: TransactionSigner = TransactionSigner::new(&network_info);
     signer1.sign_transaction(
         &mut tx_with_groups,
         &SignContexts::new_multisig_h256(&private_key1, multisig_config.clone())?,
     )?;
 
     let json_tx = ckb_jsonrpc_types::TransactionView::from(tx_with_groups.get_tx_view().clone());
-    println!("tx: {}", serde_json::to_string_pretty(&json_tx).unwrap());
+    println!(
+        "tx signer 2: {}",
+        serde_json::to_string_pretty(&json_tx).unwrap()
+    );
 
     Ok(())
 }
