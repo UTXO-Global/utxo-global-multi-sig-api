@@ -36,6 +36,22 @@ impl MultiSigSrv {
         }
     }
 
+    pub async fn request_multi_sig_info_for_signer(
+        &self,
+        address: &str,
+        signer: &str,
+    ) -> Result<MultiSigInfo, AppError> {
+        match self
+            .multi_sig_dao
+            .request_multi_sig_info_by_user(address, signer)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))?
+        {
+            Some(info) => Ok(info),
+            None => Err(AppError::new(404).message("not found")),
+        }
+    }
+
     pub async fn request_multi_sig_info(&self, address: &str) -> Result<MultiSigInfo, AppError> {
         match self
             .multi_sig_dao
@@ -48,7 +64,11 @@ impl MultiSigSrv {
         }
     }
 
-    pub async fn request_list_signers(&self, address: &str) -> Result<ListSignerRes, AppError> {
+    pub async fn request_list_signers(
+        &self,
+        address: &str,
+        signer: &str,
+    ) -> Result<ListSignerRes, AppError> {
         let mut result = ListSignerRes {
             signers: [].to_vec(),
             invites: [].to_vec(),
@@ -56,7 +76,7 @@ impl MultiSigSrv {
 
         match self
             .multi_sig_dao
-            .request_list_signers(&address.to_owned())
+            .request_list_signers(&address.to_owned(), &signer.to_owned())
             .await
         {
             Ok(signers) => result.signers = signers,

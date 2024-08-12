@@ -36,18 +36,43 @@ impl MultiSigDao {
         Ok(row.map(|row| MultiSigInfo::from_row_ref(&row).unwrap()))
     }
 
+    pub async fn request_multi_sig_info_by_user(
+        &self,
+        multisig_address: &str,
+        user_address: &str,
+    ) -> Result<Option<MultiSigInfo>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT msi.* 
+            FROM multi_sig_info msi 
+            LEFT JOIN multi_sig_signers mss
+            ON msi.multi_sig_address = mss.multi_sig_address
+            WHERE msi.multi_sig_address=$1 AND mss.signer_address=$2";
+        let stmt = client.prepare(_stmt).await?;
+
+        match client
+            .query_opt(&stmt, &[&multisig_address, &user_address])
+            .await?
+        {
+            Some(row) => Ok(Some(MultiSigInfo::from_row_ref(&row).unwrap())),
+            None => Ok(None),
+        }
+    }
+
     pub async fn request_list_signers(
         &self,
-        address: &String,
+        multisig_address: &String,
+        user_address: &String,
     ) -> Result<Vec<MultiSigSigner>, PoolError> {
         let client: Client = self.db.get().await?;
 
         let _stmt = "SELECT * FROM multi_sig_signers 
-            WHERE multi_sig_address=$1;";
+            WHERE multi_sig_address=(SELECT multi_sig_address FROM multi_sig_signers WHERE multi_sig_address=$1 AND signer_address=$2);
+        ";
         let stmt = client.prepare(_stmt).await?;
 
         let signers = client
-            .query(&stmt, &[&address])
+            .query(&stmt, &[&multisig_address, user_address])
             .await?
             .iter()
             .map(|row| MultiSigSigner::from_row_ref(row).unwrap())
