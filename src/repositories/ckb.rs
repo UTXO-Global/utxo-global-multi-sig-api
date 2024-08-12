@@ -153,8 +153,9 @@ pub fn get_multisig_config(
 ) -> Result<(Address, String), AppError> {
     let mut sighash_addresses: Vec<H160> = vec![];
     for signer in signers.iter() {
-        let address = Address::from_str(signer.address.as_str())
-            .map_err(|_| AppError::new(400).message("invalid address"))?;
+        let address = Address::from_str(signer.address.as_str()).map_err(|_| {
+            AppError::new(400).message(&format!("Address {} invalid", signer.address.as_str()))
+        })?;
         // https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0021-ckb-address-format/0021-ckb-address-format.md#short-payload-format
         let sighash_address = address.payload().args();
         sighash_addresses.push(H160::from_slice(sighash_address.as_ref()).unwrap());

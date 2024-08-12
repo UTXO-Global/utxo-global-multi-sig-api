@@ -162,7 +162,7 @@ impl MultiSigSrv {
                 status: tx.status,
                 payload: tx.payload,
                 amount: first_output.capacity().unpack(),
-                created_at: tx.created_at.to_string(),
+                created_at: tx.created_at.timestamp(),
             })
         }
         Ok(results)
@@ -177,7 +177,18 @@ impl MultiSigSrv {
             get_multisig_config(req.signers.clone(), req.threshold as u8)?;
 
         let mut client = DB_POOL.clone().get().await.unwrap();
+
+        if let Some(_signer) = self
+            .multi_sig_dao
+            .request_multi_sig_info(&sender.to_string())
+            .await
+            .unwrap()
+        {
+            return Err(AppError::new(500).message("Account already exists"));
+        }
+
         let transaction = client.transaction().await.unwrap();
+
         let account_info: MultiSigInfo = match self
             .multi_sig_dao
             .create_new_account(
@@ -465,8 +476,6 @@ impl MultiSigSrv {
                 .iter()
                 .map(|s| Bytes::from(hex::decode(s.signature.clone()).unwrap()))
                 .collect();
-
-            println!("{:?}", signatures);
 
             // Add Signatures to witness
             let tx = add_signature_to_witness(
