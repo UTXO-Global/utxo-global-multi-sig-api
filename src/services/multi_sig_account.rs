@@ -36,6 +36,35 @@ impl MultiSigSrv {
         }
     }
 
+    pub async fn request_multi_sig_info_for_signer(
+        &self,
+        address: &str,
+        signer: &str,
+    ) -> Result<MultiSigInfo, AppError> {
+        match self
+            .multi_sig_dao
+            .get_signer(&address.to_string(), &signer.to_string())
+            .await
+        {
+            Ok(s) => {
+                if s.is_some() {
+                    match self
+                        .multi_sig_dao
+                        .request_multi_sig_info(&address.to_owned())
+                        .await
+                        .map_err(|err| AppError::new(500).message(&err.to_string()))?
+                    {
+                        Some(info) => Ok(info),
+                        None => Err(AppError::new(404).message("not found")),
+                    }
+                } else {
+                    Err(AppError::new(404).message("not found"))
+                }
+            }
+            Err(err) => Err(AppError::new(404).message(&err.to_string())),
+        }
+    }
+
     pub async fn request_multi_sig_info(&self, address: &str) -> Result<MultiSigInfo, AppError> {
         match self
             .multi_sig_dao
@@ -48,7 +77,11 @@ impl MultiSigSrv {
         }
     }
 
-    pub async fn request_list_signers(&self, address: &str) -> Result<ListSignerRes, AppError> {
+    pub async fn request_list_signers(
+        &self,
+        address: &str,
+        signer: &str,
+    ) -> Result<ListSignerRes, AppError> {
         let mut result = ListSignerRes {
             signers: [].to_vec(),
             invites: [].to_vec(),
@@ -56,23 +89,36 @@ impl MultiSigSrv {
 
         match self
             .multi_sig_dao
-            .request_list_signers(&address.to_owned())
+            .get_signer(&address.to_string(), &signer.to_string())
             .await
         {
-            Ok(signers) => result.signers = signers,
-            Err(err) => return Err(AppError::new(500).message(&err.to_string())),
-        }
+            Ok(s) => {
+                if s.is_some() {
+                    match self
+                        .multi_sig_dao
+                        .request_list_signers(&address.to_owned())
+                        .await
+                    {
+                        Ok(signers) => result.signers = signers,
+                        Err(err) => return Err(AppError::new(500).message(&err.to_string())),
+                    }
 
-        match self
-            .multi_sig_dao
-            .get_invites_by_multisig(&address.to_owned())
-            .await
-        {
-            Ok(invites) => result.invites = invites,
-            Err(err) => return Err(AppError::new(500).message(&err.to_string())),
-        }
+                    match self
+                        .multi_sig_dao
+                        .get_invites_by_multisig(&address.to_owned())
+                        .await
+                    {
+                        Ok(invites) => result.invites = invites,
+                        Err(err) => return Err(AppError::new(500).message(&err.to_string())),
+                    }
 
-        Ok(result)
+                    Ok(result)
+                } else {
+                    Err(AppError::new(404).message("not found"))
+                }
+            }
+            Err(err) => Err(AppError::new(404).message(&err.to_string())),
+        }
     }
 
     pub async fn request_list_accounts(

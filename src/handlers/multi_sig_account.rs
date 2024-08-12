@@ -17,8 +17,18 @@ use super::jwt::JwtMiddleware;
 async fn request_multi_sig_info(
     address: web::Path<String>,
     multi_sig_srv: web::Data<MultiSigSrv>,
+    http_req: HttpRequest,
+    _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    match multi_sig_srv.request_multi_sig_info(&address).await {
+    let signer = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
+
+    match multi_sig_srv
+        .request_multi_sig_info_for_signer(&address, &signer)
+        .await
+    {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
         Err(err) => Err(err),
     }
@@ -27,8 +37,15 @@ async fn request_multi_sig_info(
 async fn request_list_signers(
     address: web::Path<String>,
     multi_sig_srv: web::Data<MultiSigSrv>,
+    http_req: HttpRequest,
+    _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    match multi_sig_srv.request_list_signers(&address).await {
+    let signer = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
+
+    match multi_sig_srv.request_list_signers(&address, &signer).await {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
         Err(err) => Err(err),
     }
