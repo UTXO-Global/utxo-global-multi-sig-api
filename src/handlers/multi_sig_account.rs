@@ -228,6 +228,25 @@ async fn submit_signature(
     }
 }
 
+async fn request_transaction_summary(
+    multisig_address: web::Path<String>,
+    multi_sig_srv: web::Data<MultiSigSrv>,
+    http_req: HttpRequest,
+    _: JwtMiddleware,
+) -> Result<HttpResponse, AppError> {
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
+    match multi_sig_srv
+        .rp_transaction_summary(&user_address, &multisig_address)
+        .await
+    {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
+    }
+}
+
 pub fn route(conf: &mut web::ServiceConfig) {
     conf.service(
         web::scope("/multi-sig")
@@ -247,6 +266,10 @@ pub fn route(conf: &mut web::ServiceConfig) {
             .route(
                 "/transactions/{address}",
                 web::get().to(request_list_transactions),
+            )
+            .route(
+                "/transactions/{address}/summary",
+                web::get().to(request_transaction_summary),
             )
             .route("/new-transfer", web::post().to(create_new_transfer))
             .route("/signature", web::post().to(submit_signature))

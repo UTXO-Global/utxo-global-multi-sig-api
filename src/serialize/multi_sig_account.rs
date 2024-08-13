@@ -37,6 +37,7 @@ pub struct SubmitSignatureReq {
 pub struct TransactionFilters {
     pub offset: Option<i32>,
     pub limit: Option<i32>,
+    pub status: Option<i16>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

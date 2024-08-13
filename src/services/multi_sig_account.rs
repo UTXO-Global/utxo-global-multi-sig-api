@@ -8,12 +8,13 @@ use crate::repositories::db::DB_POOL;
 use crate::serialize::multi_sig_account::{
     InviteInfo, InviteStatusReq, ListSignerRes, MultiSigAccountUpdateReq,
 };
-use crate::serialize::transaction::TransactionInfo;
+use crate::serialize::transaction::{TransactionInfo, TransactionSumary};
 use crate::{
     models::multi_sig_account::MultiSigInfo,
     repositories::multi_sig_account::MultiSigDao,
     serialize::{error::AppError, multi_sig_account::NewMultiSigAccountReq},
 };
+
 use ckb_sdk::constants::MULTISIG_TYPE_HASH;
 use ckb_sdk::Address;
 use ckb_sdk::AddressPayload;
@@ -647,5 +648,37 @@ impl MultiSigSrv {
                 Err(AppError::new(500).message(&err.to_string()))
             }
         }
+    }
+
+    pub async fn rp_transaction_summary(
+        &self,
+        user_address: &String,
+        multisig_address: &String,
+    ) -> Result<TransactionSumary, AppError> {
+        let transactions = self
+            .multi_sig_dao
+            .get_pending_tx_by_multisig_and_signer(user_address, multisig_address)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))
+            .unwrap();
+
+        let mut result = TransactionSumary {
+            total_tx_pending: transactions.len() as u32,
+            total_amount_pending: 0,
+        };
+
+        for tx in transactions {
+            let tx_info: ckb_jsonrpc_types::TransactionView =
+                serde_json::from_str(tx.payload.as_str()).map_err(|err| {
+                    AppError::new(400)
+                        .cause(err)
+                        .message("invalid transaction json")
+                })?;
+            let tx_view = Transaction::from(tx_info.clone().inner).into_view();
+            let first_output: ckb_types::packed::CellOutput = tx_view.outputs().get(0).unwrap();
+            result.total_amount_pending += &first_output.capacity().unpack();
+        }
+
+        Ok(result)
     }
 }
