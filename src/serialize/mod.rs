@@ -8,6 +8,14 @@ pub struct Claims {
     pub exp: usize,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PaginationRes {
+    pub page: i64,
+    pub limit: i64,
+    pub total_records: i64,
+    pub total_page: i64,
+}
+
 pub mod address_book;
 pub mod error;
 pub mod multi_sig_account;

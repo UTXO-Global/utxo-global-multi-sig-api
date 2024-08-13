@@ -125,7 +125,7 @@ async fn request_list_accounts(
 }
 
 async fn request_list_transactions(
-    query: web::Query<TransactionFilters>,
+    filters: web::Query<TransactionFilters>,
     multisig_address: web::Path<String>,
     multi_sig_srv: web::Data<MultiSigSrv>,
     http_req: HttpRequest,
@@ -136,12 +136,7 @@ async fn request_list_transactions(
         ext.get::<String>().unwrap().clone()
     };
     match multi_sig_srv
-        .request_list_transactions(
-            &user_address,
-            &multisig_address,
-            query.offset.unwrap_or(0),
-            query.limit.unwrap_or(10),
-        )
+        .request_list_transactions(&user_address, &multisig_address, filters.into_inner())
         .await
     {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),

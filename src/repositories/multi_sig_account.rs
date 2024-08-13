@@ -6,7 +6,9 @@ use crate::{
         multi_sig_invite::MultiSigInvite,
         multi_sig_tx::{CkbSignature, CkbTransaction},
     },
-    serialize::multi_sig_account::{MultiSigAccountUpdateReq, NewMultiSigAccountReq},
+    serialize::multi_sig_account::{
+        MultiSigAccountUpdateReq, NewMultiSigAccountReq, TransactionFilters,
+    },
 };
 use chrono::Utc;
 use deadpool_postgres::{Client, Pool, PoolError, Transaction};
@@ -141,36 +143,74 @@ impl MultiSigDao {
 
     pub async fn request_list_transactions(
         &self,
-        signer_address: &String,
-        multisig_address: &String,
-        offset: i32,
-        limit: i32,
+        user_address: &str,
+        multisig_address: &str,
+        filters: TransactionFilters,
     ) -> Result<Vec<CkbTransaction>, PoolError> {
+        let limit: i64 = filters.limit.unwrap_or(10);
+        let page: i64 = filters.page.unwrap_or(1);
+        let offset = (page - 1) * limit;
+
         let client: Client = self.db.get().await?;
 
-        let _stmt = "SELECT tx.* FROM transactions tx
+        let mut _stmt = "SELECT tx.* FROM transactions tx
             LEFT JOIN multi_sig_signers mss
                 ON mss.multi_sig_address = tx.multi_sig_address
-            WHERE mss.signer_address=$1 and tx.multi_sig_address = $2
-            OFFSET $3 LIMIT $4;";
-        let stmt = client.prepare(_stmt).await?;
+            WHERE mss.signer_address=$1 and tx.multi_sig_address=$2"
+            .to_string();
+
+        if let Some(status) = filters.status {
+            _stmt = format!("{} AND tx.status={}", _stmt, status);
+        }
+
+        if let Some(hash) = filters.tx_hash {
+            _stmt = format!("{} AND tx.transaction_id='{}'", _stmt, hash);
+        }
+
+        _stmt = format!("{} OFFSET $3 LIMIT $4", _stmt);
+
+        let stmt = client.prepare(&_stmt).await?;
 
         let txs = client
-            .query(
-                &stmt,
-                &[
-                    &signer_address,
-                    &multisig_address,
-                    &(offset as i64),
-                    &(limit as i64),
-                ],
-            )
+            .query(&stmt, &[&user_address, &multisig_address, &offset, &limit])
             .await?
             .iter()
             .map(|row| CkbTransaction::from_row_ref(row).unwrap())
             .collect::<Vec<CkbTransaction>>();
 
         Ok(txs)
+    }
+
+    pub async fn get_total_record_by_filters(
+        &self,
+        user_address: &str,
+        multisig_address: &str,
+        filters: TransactionFilters,
+    ) -> Result<i64, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let mut _stmt = "SELECT COUNT(*) as total_record FROM transactions tx
+            LEFT JOIN multi_sig_signers mss
+                ON mss.multi_sig_address = tx.multi_sig_address
+            WHERE mss.signer_address=$1 and tx.multi_sig_address=$2"
+            .to_string();
+
+        if let Some(status) = filters.status {
+            _stmt = format!("{} AND tx.status={}", _stmt, status);
+        }
+
+        if let Some(hash) = filters.tx_hash {
+            _stmt = format!("{} AND tx.transaction_id='{}'", _stmt, hash);
+        }
+
+        let stmt = client.prepare(&_stmt).await?;
+
+        let row = client
+            .query_one(&stmt, &[&user_address, &multisig_address])
+            .await
+            .unwrap();
+
+        Ok(row.get(0))
     }
 
     pub async fn create_new_account(

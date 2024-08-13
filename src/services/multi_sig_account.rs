@@ -6,9 +6,10 @@ use crate::repositories::ckb::{
 };
 use crate::repositories::db::DB_POOL;
 use crate::serialize::multi_sig_account::{
-    InviteInfo, InviteStatusReq, ListSignerRes, MultiSigAccountUpdateReq,
+    InviteInfo, InviteStatusReq, ListSignerRes, MultiSigAccountUpdateReq, TransactionFilters,
 };
-use crate::serialize::transaction::{TransactionInfo, TransactionSumary};
+use crate::serialize::transaction::{ListTransactionsRes, TransactionInfo, TransactionSumary};
+use crate::serialize::PaginationRes;
 use crate::{
     models::multi_sig_account::MultiSigInfo,
     repositories::multi_sig_account::MultiSigDao,
@@ -108,19 +109,16 @@ impl MultiSigSrv {
 
     pub async fn request_list_transactions(
         &self,
-        signer_address: &str,
-        multi_sig_address: &str,
-        offset: i32,
-        limit: i32,
-    ) -> Result<Vec<TransactionInfo>, AppError> {
+        user_address: &str,
+        multisig_address: &str,
+        filters: TransactionFilters,
+    ) -> Result<ListTransactionsRes, AppError> {
+        let limit: i64 = filters.limit.unwrap_or(10);
+        let page: i64 = filters.page.unwrap_or(1);
+
         let res = self
             .multi_sig_dao
-            .request_list_transactions(
-                &signer_address.to_owned(),
-                &multi_sig_address.to_owned(),
-                offset,
-                limit,
-            )
+            .request_list_transactions(user_address, multisig_address, filters.clone())
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
             .unwrap();
@@ -166,7 +164,23 @@ impl MultiSigSrv {
                 created_at: tx.created_at.timestamp(),
             })
         }
-        Ok(results)
+
+        let total_record = self
+            .multi_sig_dao
+            .get_total_record_by_filters(user_address, multisig_address, filters.clone())
+            .await
+            .unwrap_or(0);
+
+        let total_page = total_record as f64 / limit as f64;
+        Ok(ListTransactionsRes {
+            transactions: results,
+            pagination: PaginationRes {
+                page,
+                limit,
+                total_records: total_record,
+                total_page: total_page.ceil() as i64,
+            },
+        })
     }
 
     pub async fn create_new_account(
