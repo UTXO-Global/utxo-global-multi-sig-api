@@ -11,3 +11,9 @@ pub struct TransactionInfo {
     pub created_at: i64,
     pub amount: u64,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TransactionSumary {
+    pub total_tx_pending: u32,
+    pub total_amount_pending: u64,
+}
