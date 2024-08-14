@@ -4,7 +4,7 @@ use crate::{
     models::{
         multi_sig_account::{MultiSigInfo, MultiSigSigner},
         multi_sig_invite::MultiSigInvite,
-        multi_sig_tx::{CkbSignature, CkbTransaction},
+        multi_sig_tx::{CkbSignature, CkbTransaction, TransactionError, TransactionReject},
     },
     serialize::multi_sig_account::{
         MultiSigAccountUpdateReq, NewMultiSigAccountReq, TransactionFilters,
@@ -160,7 +160,8 @@ impl MultiSigDao {
             .to_string();
 
         if let Some(status) = filters.status {
-            _stmt = format!("{} AND tx.status={}", _stmt, status);
+            let statuses: Vec<&str> = status.split(",").collect();
+            _stmt = format!("{} AND tx.status IN ({})", _stmt, statuses.join(","));
         }
 
         if let Some(hash) = filters.tx_hash {
@@ -196,7 +197,8 @@ impl MultiSigDao {
             .to_string();
 
         if let Some(status) = filters.status {
-            _stmt = format!("{} AND tx.status={}", _stmt, status);
+            let statuses: Vec<&str> = status.split(",").collect();
+            _stmt = format!("{} AND tx.status IN ({})", _stmt, statuses.join(","));
         }
 
         if let Some(hash) = filters.tx_hash {
@@ -304,6 +306,25 @@ impl MultiSigDao {
         Ok(row.map(|row| CkbTransaction::from_row_ref(&row).unwrap()))
     }
 
+    pub async fn get_tx_by_hash_and_signer(
+        &self,
+        user_address: &str,
+        txid: &str,
+    ) -> Result<Option<CkbTransaction>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT * 
+            FROM transactions 
+            WHERE transaction_id=$1 AND
+                multi_sig_address IN (
+                    SELECT multi_sig_address FROM multi_sig_signers WHERE signer_address=$2
+                )";
+        let stmt = client.prepare(_stmt).await?;
+
+        let row = client.query(&stmt, &[&txid, &user_address]).await?.pop();
+        Ok(row.map(|row| CkbTransaction::from_row_ref(&row).unwrap()))
+    }
+
     pub async fn add_signature(
         &self,
         transaction_id: &String,
@@ -377,7 +398,6 @@ impl MultiSigDao {
         payload: &String,
     ) -> Result<CkbTransaction, PoolError> {
         let mut client: Client = self.db.get().await?;
-
         let db_transaction = client.transaction().await?;
 
         // Update tx
@@ -389,7 +409,6 @@ impl MultiSigDao {
             .map(|row| CkbTransaction::from_row(row).unwrap())?;
 
         db_transaction.commit().await?;
-
         Ok(tx_updated)
     }
 
@@ -520,5 +539,98 @@ impl MultiSigDao {
             .collect::<Vec<CkbTransaction>>();
 
         Ok(transactions)
+    }
+
+    pub async fn update_transaction_status(
+        &self,
+        transaction_id: &String,
+        status: i16,
+    ) -> Result<bool, PoolError> {
+        let client: Client = self.db.get().await?;
+        let stmt = "UPDATE transactions SET status=$1 WHERE transaction_id=$2";
+        Ok(client
+            .execute(stmt, &[&status, transaction_id])
+            .await
+            .unwrap()
+            > 0)
+    }
+
+    // Transaction errors
+
+    pub async fn add_errors(
+        &self,
+        signer_address: &String,
+        transaction_id: &String,
+        errors: &String,
+    ) -> Result<bool, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        // Create tx
+        let stmt =
+            "INSERT INTO transaction_errors (transaction_id, signer_address, errors) VALUES ($1, $2, $3);";
+        let stmt = client.prepare(stmt).await?;
+        Ok(client
+            .execute(&stmt, &[transaction_id, signer_address, errors])
+            .await
+            .unwrap()
+            > 0)
+    }
+
+    pub async fn get_errors_by_txid(
+        &self,
+        txid: &String,
+    ) -> Result<Vec<TransactionError>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt =
+            "SELECT * FROM transaction_errors WHERE transaction_id=$1 ORDER BY created_at DESC";
+        let stmt = client.prepare(_stmt).await?;
+
+        let errors = client
+            .query(&stmt, &[&txid])
+            .await?
+            .iter()
+            .map(|row| TransactionError::from_row_ref(row).unwrap())
+            .collect::<Vec<TransactionError>>();
+
+        Ok(errors)
+    }
+
+    pub async fn reject_transaction(
+        &self,
+        transaction_id: &String,
+        signer_address: &String,
+    ) -> Result<bool, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        // Create tx
+        let stmt =
+            "INSERT INTO transaction_rejects (transaction_id, signer_address) VALUES ($1, $2);";
+        let stmt = client.prepare(stmt).await?;
+        Ok(client
+            .execute(&stmt, &[transaction_id, signer_address])
+            .await
+            .unwrap()
+            > 0)
+    }
+
+    pub async fn get_list_rejected_by_txid(
+        &self,
+        txid: &String,
+    ) -> Result<Vec<TransactionReject>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT * FROM transaction_rejects 
+            WHERE transaction_id=$1;";
+        let stmt = client.prepare(_stmt).await?;
+
+        let refusers = client
+            .query(&stmt, &[&txid])
+            .await?
+            .iter()
+            .map(|row| TransactionReject::from_row_ref(row).unwrap())
+            .collect::<Vec<TransactionReject>>();
+
+        Ok(refusers)
     }
 }

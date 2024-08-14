@@ -37,7 +37,7 @@ pub struct SubmitSignatureReq {
 pub struct TransactionFilters {
     pub page: Option<i64>,
     pub limit: Option<i64>,
-    pub status: Option<i16>,
+    pub status: Option<String>,
     pub tx_hash: Option<String>,
 }
 
