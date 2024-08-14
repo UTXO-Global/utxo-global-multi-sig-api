@@ -160,7 +160,7 @@ impl MultiSigDao {
             .to_string();
 
         if let Some(status) = filters.status {
-            let statuses: Vec<&str> = status.split(",").collect();
+            let statuses: Vec<&str> = status.split(',').collect();
             _stmt = format!("{} AND tx.status IN ({})", _stmt, statuses.join(","));
         }
 
@@ -197,7 +197,7 @@ impl MultiSigDao {
             .to_string();
 
         if let Some(status) = filters.status {
-            let statuses: Vec<&str> = status.split(",").collect();
+            let statuses: Vec<&str> = status.split(',').collect();
             _stmt = format!("{} AND tx.status IN ({})", _stmt, statuses.join(","));
         }
 

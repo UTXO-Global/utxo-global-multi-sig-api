@@ -421,12 +421,8 @@ impl MultiSigSrv {
         {
             Ok(_) => Ok(()),
             Err(err) => {
-                self.save_transaction_error(
-                    &"syncStatus".to_string(),
-                    &txid.to_owned(),
-                    &err.to_string(),
-                )
-                .await;
+                self.save_transaction_error("syncStatus", &txid.to_owned(), &err.to_string())
+                    .await;
                 Err(AppError::new(500).message(&err.to_string()))
             }
         }
@@ -441,7 +437,7 @@ impl MultiSigSrv {
 
         if let Err(err) = result {
             let tx_id = hex::encode(json_tx.hash.to_string());
-            self.save_transaction_error(&"sendTransaction".to_string(), &tx_id, &err.to_string())
+            self.save_transaction_error("sendTransaction", &tx_id, &err.to_string())
                 .await;
             return Err(AppError::new(500).cause(err).message("Submit tx failed"));
         }
@@ -585,7 +581,7 @@ impl MultiSigSrv {
         // to use check threshold by txid
         let validate_outputs_result = self.validate_outpoints(&outpoints).await;
         if let Err(err) = validate_outputs_result {
-            self.save_transaction_error(&signer_address, &tx_id, &err.to_string())
+            self.save_transaction_error(signer_address, &tx_id, &err.to_string())
                 .await;
             return Err(AppError::new(500).message(&err.to_string()));
         }
@@ -597,7 +593,7 @@ impl MultiSigSrv {
             .validate_signer(signer_address, &multi_sig_address)
             .await
         {
-            self.save_transaction_error(&signer_address, &tx_id, &err.to_string())
+            self.save_transaction_error(signer_address, &tx_id, &err.to_string())
                 .await;
             return Err(err);
         }
