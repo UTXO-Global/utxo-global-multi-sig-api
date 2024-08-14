@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS transaction_errors (
   id SERIAL PRIMARY KEY,
   transaction_id VARCHAR(100),
   signer_address VARCHAR(100),
-  errors TEXT,
+  error_msg TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

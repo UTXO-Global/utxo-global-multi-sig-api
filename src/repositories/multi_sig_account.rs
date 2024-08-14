@@ -567,7 +567,7 @@ impl MultiSigDao {
 
         // Create tx
         let stmt =
-            "INSERT INTO transaction_errors (transaction_id, signer_address, errors) VALUES ($1, $2, $3);";
+            "INSERT INTO transaction_errors (transaction_id, signer_address, error_msg) VALUES ($1, $2, $3);";
         let stmt = client.prepare(stmt).await?;
         Ok(client
             .execute(&stmt, &[transaction_id, signer_address, errors])
