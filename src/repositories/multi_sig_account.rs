@@ -603,7 +603,7 @@ impl MultiSigDao {
     ) -> Result<bool, PoolError> {
         let client: Client = self.db.get().await?;
 
-        // Create tx
+        // Save error
         let stmt =
             "INSERT INTO transaction_rejects (transaction_id, signer_address) VALUES ($1, $2);";
         let stmt = client.prepare(stmt).await?;
