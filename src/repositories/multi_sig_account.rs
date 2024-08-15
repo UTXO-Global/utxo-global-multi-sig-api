@@ -168,7 +168,7 @@ impl MultiSigDao {
             _stmt = format!("{} AND tx.transaction_id='{}'", _stmt, hash);
         }
 
-        _stmt = format!("{} OFFSET $3 LIMIT $4", _stmt);
+        _stmt = format!("{} ORDER BY tx.created_at DESC OFFSET $3 LIMIT $4", _stmt);
 
         let stmt = client.prepare(&_stmt).await?;
 
