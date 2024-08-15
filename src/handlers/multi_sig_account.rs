@@ -223,6 +223,26 @@ async fn submit_signature(
     }
 }
 
+async fn reject_transaction(
+    multi_sig_srv: web::Data<MultiSigSrv>,
+    transaction_id: web::Path<String>,
+    http_req: HttpRequest,
+    _: JwtMiddleware,
+) -> Result<HttpResponse, AppError> {
+    let user_address = {
+        let ext = http_req.extensions();
+        ext.get::<String>().unwrap().clone()
+    };
+
+    match multi_sig_srv
+        .reject_transaction(&user_address, &transaction_id)
+        .await
+    {
+        Ok(res) => Ok(HttpResponse::Ok().json(json!({ "result": res }))),
+        Err(err) => Err(err),
+    }
+}
+
 async fn request_transaction_summary(
     multisig_address: web::Path<String>,
     multi_sig_srv: web::Data<MultiSigSrv>,
@@ -265,6 +285,10 @@ pub fn route(conf: &mut web::ServiceConfig) {
             .route(
                 "/transactions/{address}/summary",
                 web::get().to(request_transaction_summary),
+            )
+            .route(
+                "/transactions/{txId}/reject",
+                web::put().to(reject_transaction),
             )
             .route("/new-transfer", web::post().to(create_new_transfer))
             .route("/signature", web::post().to(submit_signature))

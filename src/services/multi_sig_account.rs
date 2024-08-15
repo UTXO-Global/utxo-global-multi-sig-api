@@ -1,5 +1,8 @@
 use crate::models::multi_sig_invite::MultiSigInviteStatus;
-use crate::models::multi_sig_tx::CkbTransaction;
+use crate::models::multi_sig_tx::{
+    CkbTransaction, TRANSACTION_STATUS_FAILED, TRANSACTION_STATUS_PENDING,
+    TRANSACTION_STATUS_REJECT,
+};
 use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
     add_signature_to_witness, get_ckb_network, get_live_cell, get_multisig_config, send_transaction,
@@ -150,8 +153,24 @@ impl MultiSigSrv {
                 .await
                 .unwrap();
 
+            let refusers = self
+                .multi_sig_dao
+                .get_list_rejected_by_txid(&tx.transaction_id)
+                .await
+                .unwrap();
+
+            let mut errors = None;
+            if tx.status.eq(&TRANSACTION_STATUS_FAILED) {
+                errors = Some(
+                    self.multi_sig_dao
+                        .get_errors_by_txid(&tx.transaction_id)
+                        .await
+                        .unwrap(),
+                );
+            }
+
             results.push(TransactionInfo {
-                transaction_id: tx.transaction_id,
+                transaction_id: tx.clone().transaction_id,
                 multi_sig_address: tx.multi_sig_address,
                 to_address: address.to_string(),
                 confirmed: signatures
@@ -162,6 +181,11 @@ impl MultiSigSrv {
                 payload: tx.payload,
                 amount: first_output.capacity().unpack(),
                 created_at: tx.created_at.timestamp(),
+                rejected: refusers
+                    .iter()
+                    .map(|sig| sig.signer_address.clone())
+                    .collect(),
+                errors,
             })
         }
 
@@ -390,11 +414,18 @@ impl MultiSigSrv {
         txid: &String,
         payload: &String,
     ) -> Result<(), AppError> {
-        self.multi_sig_dao
+        match self
+            .multi_sig_dao
             .sync_status_after_broadcast(txid, payload)
             .await
-            .map_err(|err| AppError::new(500).message(&err.to_string()))?;
-        Ok(())
+        {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                self.save_transaction_error("syncStatus", &txid.to_owned(), &err.to_string())
+                    .await;
+                Err(AppError::new(500).message(&err.to_string()))
+            }
+        }
     }
 
     async fn broadcast_tx(
@@ -405,7 +436,9 @@ impl MultiSigSrv {
             send_transaction(json_tx.inner, None).await;
 
         if let Err(err) = result {
-            log::error!(target: "multi_sig_service", "Submit tx failed: {err:?}");
+            let tx_id = hex::encode(json_tx.hash.to_string());
+            self.save_transaction_error("sendTransaction", &tx_id, &err.to_string())
+                .await;
             return Err(AppError::new(500).cause(err).message("Submit tx failed"));
         }
 
@@ -456,18 +489,6 @@ impl MultiSigSrv {
         self.check_threshold(&multi_sig_info, &tx).await?;
 
         Ok(ckb_tx)
-    }
-
-    async fn get_tx_by_hash(&self, txid: &str) -> Result<CkbTransaction, AppError> {
-        match self
-            .multi_sig_dao
-            .get_tx_by_hash(&txid.to_owned())
-            .await
-            .map_err(|err| AppError::new(500).message(&err.to_string()))?
-        {
-            Some(info) => Ok(info),
-            None => Err(AppError::new(404).message("tx not found")),
-        }
     }
 
     async fn check_threshold(
@@ -524,15 +545,28 @@ impl MultiSigSrv {
         signature: &str,
         txid: &str,
     ) -> Result<CkbTransaction, AppError> {
-        let ckb_tx = self.get_tx_by_hash(txid).await?;
+        let transaction = self
+            .multi_sig_dao
+            .get_tx_by_hash_and_signer(signer_address, txid)
+            .await
+            .unwrap();
 
-        // TODO check tx status
+        if transaction.is_none() {
+            return Err(AppError::new(404).message("Transaction not found"));
+        }
+
+        let ckb_tx = transaction.unwrap();
+        if ckb_tx.status.ne(&TRANSACTION_STATUS_PENDING) {
+            return Err(AppError::new(404).message("Transaction not valid"));
+        }
+
         let tx_info: ckb_jsonrpc_types::TransactionView =
             serde_json::from_str(ckb_tx.payload.as_str()).map_err(|err| {
                 AppError::new(400)
                     .cause(err)
                     .message("invalid transaction json")
             })?;
+
         let tx = Transaction::from(tx_info.clone().inner).into_view();
         let tx_id = tx_info.hash.to_string();
 
@@ -545,11 +579,25 @@ impl MultiSigSrv {
         // it should be check threshold on cells instead of checking by tx
         // currently all cells is belong to single multi-sig address so we able
         // to use check threshold by txid
-        let multi_sig_address = self.validate_outpoints(&outpoints).await?;
+        let validate_outputs_result = self.validate_outpoints(&outpoints).await;
+        if let Err(err) = validate_outputs_result {
+            self.save_transaction_error(signer_address, &tx_id, &err.to_string())
+                .await;
+            return Err(AppError::new(500).message(&err.to_string()));
+        }
+
+        let multi_sig_address = validate_outputs_result.unwrap();
 
         // Validate if user is one of multi-sig signers
-        self.validate_signer(signer_address, &multi_sig_address)
-            .await?;
+        if let Err(err) = self
+            .validate_signer(signer_address, &multi_sig_address)
+            .await
+        {
+            self.save_transaction_error(signer_address, &tx_id, &err.to_string())
+                .await;
+            return Err(err);
+        }
+
         let multi_sig_info = self.request_multi_sig_info(&multi_sig_address).await?;
 
         let ckb_tx: CkbTransaction = self
@@ -566,8 +614,56 @@ impl MultiSigSrv {
 
         // Check threshold sig
         self.check_threshold(&multi_sig_info, &tx).await?;
-
         Ok(ckb_tx)
+    }
+
+    pub async fn reject_transaction(
+        &self,
+        signer_address: &str,
+        txid: &str,
+    ) -> Result<bool, AppError> {
+        match self
+            .multi_sig_dao
+            .get_tx_by_hash_and_signer(signer_address, txid)
+            .await
+            .unwrap()
+        {
+            Some(transaction) => {
+                if let Some(multisig_info) = self
+                    .multi_sig_dao
+                    .request_multi_sig_info(&transaction.multi_sig_address)
+                    .await
+                    .map_err(|err| AppError::new(500).message(&err.to_string()))
+                    .unwrap()
+                {
+                    self.multi_sig_dao
+                        .reject_transaction(&txid.to_owned(), &signer_address.to_owned())
+                        .await
+                        .unwrap();
+
+                    let refusers = self
+                        .multi_sig_dao
+                        .get_list_rejected_by_txid(&txid.to_owned())
+                        .await
+                        .map_err(|err| AppError::new(500).message(&err.to_string()))
+                        .unwrap();
+
+                    let max_valid_signers = multisig_info.signers - (refusers.len() as i16);
+
+                    if max_valid_signers < multisig_info.threshold {
+                        let _ = self
+                            .multi_sig_dao
+                            .update_transaction_status(&txid.to_owned(), TRANSACTION_STATUS_REJECT)
+                            .await
+                            .map_err(|err| AppError::new(500).message(&err.to_string()));
+                    }
+
+                    return Ok(true);
+                }
+                Err(AppError::new(404).message("Account not found"))
+            }
+            None => Err(AppError::new(404).message("Transaction not found")),
+        }
     }
 
     pub async fn get_invites_list(&self, address: &String) -> Result<Vec<InviteInfo>, AppError> {
@@ -662,6 +758,27 @@ impl MultiSigSrv {
                 Err(AppError::new(500).message(&err.to_string()))
             }
         }
+    }
+
+    pub async fn save_transaction_error(
+        &self,
+        signer_address: &str,
+        transacion_id: &str,
+        errors: &str,
+    ) {
+        let _ = self
+            .multi_sig_dao
+            .update_transaction_status(&transacion_id.to_string(), TRANSACTION_STATUS_FAILED)
+            .await;
+
+        let _ = self
+            .multi_sig_dao
+            .add_errors(
+                &signer_address.to_string(),
+                &transacion_id.to_string(),
+                &errors.to_string(),
+            )
+            .await;
     }
 
     pub async fn rp_transaction_summary(

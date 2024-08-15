@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::models::multi_sig_tx::TransactionError;
+
 use super::PaginationRes;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -8,10 +10,12 @@ pub struct TransactionInfo {
     pub multi_sig_address: String,
     pub to_address: String,
     pub confirmed: Vec<String>,
+    pub rejected: Vec<String>,
     pub status: i16,
     pub payload: String,
     pub created_at: i64,
     pub amount: u64,
+    pub errors: Option<Vec<TransactionError>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
