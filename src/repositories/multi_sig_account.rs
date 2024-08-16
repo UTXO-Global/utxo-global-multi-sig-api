@@ -6,8 +6,9 @@ use crate::{
         multi_sig_invite::MultiSigInvite,
         multi_sig_tx::{CkbSignature, CkbTransaction, TransactionError, TransactionReject},
     },
-    serialize::multi_sig_account::{
-        MultiSigAccountUpdateReq, NewMultiSigAccountReq, TransactionFilters,
+    serialize::{
+        error::AppError,
+        multi_sig_account::{MultiSigAccountUpdateReq, NewMultiSigAccountReq, TransactionFilters},
     },
 };
 use chrono::Utc;
@@ -548,11 +549,12 @@ impl MultiSigDao {
     ) -> Result<bool, PoolError> {
         let client: Client = self.db.get().await?;
         let stmt = "UPDATE transactions SET status=$1 WHERE transaction_id=$2";
-        Ok(client
+        let res = client
             .execute(stmt, &[&status, transaction_id])
             .await
-            .unwrap()
-            > 0)
+            .map_err(|err| AppError::new(500).message(&err.to_string()))
+            .unwrap();
+        Ok(res > 0)
     }
 
     // Transaction errors
@@ -569,11 +571,12 @@ impl MultiSigDao {
         let stmt =
             "INSERT INTO transaction_errors (transaction_id, signer_address, error_msg) VALUES ($1, $2, $3);";
         let stmt = client.prepare(stmt).await?;
-        Ok(client
+        let res = client
             .execute(&stmt, &[transaction_id, signer_address, errors])
             .await
-            .unwrap()
-            > 0)
+            .map_err(|err| AppError::new(500).message(&err.to_string()))
+            .unwrap();
+        Ok(res > 0)
     }
 
     pub async fn get_errors_by_txid(
