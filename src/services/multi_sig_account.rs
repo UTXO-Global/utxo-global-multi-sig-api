@@ -436,7 +436,7 @@ impl MultiSigSrv {
             send_transaction(json_tx.inner, None).await;
 
         if let Err(err) = result {
-            let tx_id = hex::encode(json_tx.hash.to_string());
+            let tx_id = json_tx.hash.to_string();
             self.save_transaction_error("sendTransaction", &tx_id, &err.to_string())
                 .await;
             return Err(AppError::new(500).cause(err).message("Submit tx failed"));
@@ -457,7 +457,7 @@ impl MultiSigSrv {
                     .cause(err)
                     .message("invalid transaction json")
             })?;
-        let tx = Transaction::from(tx_info.clone().inner).into_view();
+        let tx: TransactionView = Transaction::from(tx_info.clone().inner).into_view();
         let tx_id = tx_info.hash.to_string();
 
         let outpoints: Vec<ckb_jsonrpc_types::OutPoint> = tx
@@ -486,7 +486,7 @@ impl MultiSigSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
         // check if threshold is one => broadcast tx immediately
-        self.check_threshold(&multi_sig_info, &tx).await?;
+        let _ = self.check_threshold(&multi_sig_info, &tx).await;
 
         Ok(ckb_tx)
     }
@@ -506,7 +506,7 @@ impl MultiSigSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
         if ckb_signatures
             .len()
-            .eq(&(multi_sig_info.threshold as usize))
+            .ge(&(multi_sig_info.threshold as usize))
         {
             let signatures = ckb_signatures
                 .iter()
