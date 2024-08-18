@@ -3,7 +3,7 @@ use ckb_sdk::{
         builder::{CkbTransactionBuilder, SimpleTransactionBuilder},
         handler::HandlerContexts,
         input::InputIterator,
-        signer::{SignContexts, TransactionSigner},
+        signer::SignContexts,
         TransactionBuilderConfiguration,
     },
     unlock::MultisigConfig,
@@ -11,6 +11,7 @@ use ckb_sdk::{
 };
 use ckb_types::{core::Capacity, h160, h256};
 use std::{error::Error as StdErr, str::FromStr};
+use utxo_global_multi_sig_api::services::overrided::{OverrideMultisigConfig, TransactionSigner};
 
 fn main() -> Result<(), Box<dyn StdErr>> {
     let network_info = NetworkInfo::testnet();
@@ -27,7 +28,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
         0,
         2,
     )?;
-    let sender = multisig_config.to_address(network_info.network_type, None);
+    let sender = multisig_config.to_address_override(network_info.network_type, None);
     let receiver = Address::from_str("ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqgnf80gpm2klvxhq3gt848ag67s6mztldsvt4nh0")?;
     println!("arg {:?}", hex::encode(sender.payload().args()));
 

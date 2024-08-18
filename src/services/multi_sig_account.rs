@@ -5,7 +5,8 @@ use crate::models::multi_sig_tx::{
 };
 use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
-    add_signature_to_witness, get_ckb_network, get_live_cell, get_multisig_config, send_transaction,
+    add_signature_to_witness, get_ckb_network, get_live_cell, get_multisig_config,
+    get_multisig_script_hash, send_transaction,
 };
 use crate::repositories::db::DB_POOL;
 use crate::serialize::multi_sig_account::{
@@ -19,7 +20,6 @@ use crate::{
     serialize::{error::AppError, multi_sig_account::NewMultiSigAccountReq},
 };
 
-use ckb_sdk::constants::MULTISIG_TYPE_HASH;
 use ckb_sdk::Address;
 use ckb_sdk::AddressPayload;
 use ckb_types::bytes::Bytes;
@@ -374,7 +374,7 @@ impl MultiSigSrv {
                 get_ckb_network(),
                 AddressPayload::new_full(
                     ScriptHashType::Type,
-                    MULTISIG_TYPE_HASH.pack(),
+                    get_multisig_script_hash().pack(),
                     Bytes::copy_from_slice(
                         cell_with_status.cell.unwrap().output.lock.args.as_bytes(),
                     ),

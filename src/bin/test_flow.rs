@@ -3,7 +3,7 @@ use ckb_sdk::{
         builder::{CkbTransactionBuilder, SimpleTransactionBuilder},
         handler::HandlerContexts,
         input::InputIterator,
-        signer::{SignContexts, TransactionSigner},
+        signer::SignContexts,
         TransactionBuilderConfiguration,
     },
     unlock::MultisigConfig,
@@ -16,6 +16,7 @@ use std::{error::Error as StdErr, str::FromStr};
 use utxo_global_multi_sig_api::{
     repositories::ckb::{add_signature_to_witness, get_multisig_config},
     serialize::multi_sig_account::SignerInfo,
+    services::overrided::{OverrideMultisigConfig, TransactionSigner},
 };
 
 fn get_tx_group_with_script(multisig_config: &MultisigConfig) -> TransactionWithScriptGroups {
@@ -25,7 +26,7 @@ fn get_tx_group_with_script(multisig_config: &MultisigConfig) -> TransactionWith
         TransactionBuilderConfiguration::new_with_network(network_info.clone()).unwrap();
 
     // ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqdunqvd3g2felqv6qer8pkydws8jg9qxlca0st5v
-    let sender = multisig_config.to_address(network_info.network_type, None);
+    let sender = multisig_config.to_address_override(network_info.network_type, None);
 
     let receiver = Address::from_str("ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8keemy2p5uu0g0gn8cd4ju23s5269qk8rg4r").unwrap();
 
@@ -58,7 +59,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
         2,
     )?;
     // ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqdunqvd3g2felqv6qer8pkydws8jg9qxlca0st5v
-    let sender = multisig_config.to_address(network_info.network_type, None);
+    let sender = multisig_config.to_address_override(network_info.network_type, None);
 
     // Get multi-sig config
     let (multi_sig_address, multi_sig_witness_data) = get_multisig_config(vec![
@@ -116,7 +117,9 @@ fn main() -> Result<(), Box<dyn StdErr>> {
             .clone()
             .into_bytes(),
     );
+    println!("multi_sig_config {}", multi_sig_witness_data);
     let witness_full = witness;
+    println!("witness_full {}", witness_full);
     let tx_hash = json_tx.hash;
     println!("witness full sign by lib {}", witness_full);
 
