@@ -19,6 +19,8 @@ pub const CKB_TESTNET_EXPLORER_API: &str = "https://testnet-api.explorer.nervos.
 pub const CKB_MAINNET_EXPLORER_API: &str = "https://mainnet-api.explorer.nervos.org/api";
 pub const CKB_TESTNET_RPC: &str = "https://testnet.ckb.dev/rpc";
 pub const CKB_MAINNET_RPC: &str = "https://mainnet.ckb.dev/rpc";
+pub const JOYID_LOCK_SCRIPT_CODE_HASH: &str =
+    "d23761b364210735c19c60561d213fb3beae2fd6172743719eff6920e020baac";
 
 pub fn get_explorer_api_url() -> String {
     let network = get_ckb_network();
@@ -152,10 +154,17 @@ pub fn get_multisig_config(
     threshold: u8,
 ) -> Result<(Address, String), AppError> {
     let mut sighash_addresses: Vec<H160> = vec![];
+    let network = get_ckb_network();
     for signer in signers.iter() {
         let address = Address::from_str(signer.address.as_str()).map_err(|_| {
             AppError::new(400).message(&format!("Address {} invalid", signer.address.as_str()))
         })?;
+
+        let address_hash = hex::encode(address.payload().code_hash(Some(network)).as_slice());
+        if address_hash.eq(JOYID_LOCK_SCRIPT_CODE_HASH) {
+            return Err(AppError::new(500).message("JoyID addresses are currently not supported as signers in this multisig wallet. Please choose a different address to proceed"));
+        }
+
         // https://github.com/nervosnetwork/rfcs/blob/master/rfcs/0021-ckb-address-format/0021-ckb-address-format.md#short-payload-format
         let sighash_address = address.payload().args();
         sighash_addresses.push(H160::from_slice(sighash_address.as_ref()).unwrap());
@@ -167,7 +176,7 @@ pub fn get_multisig_config(
                 .message("cannot generate multisig address")
         })?;
 
-    let sender = multisig_config.to_address(get_ckb_network(), None);
+    let sender = multisig_config.to_address(network, None);
     let mutli_sig_witness_data = hex::encode(multisig_config.to_witness_data());
 
     Ok((sender, mutli_sig_witness_data))
