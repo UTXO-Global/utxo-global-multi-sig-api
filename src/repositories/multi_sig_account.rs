@@ -519,17 +519,21 @@ impl MultiSigDao {
         let client: Client = self.db.get().await?;
 
         let _stmt = "
-            SELECT tx.* FROM transactions tx
-            LEFT JOIN signatures sig
-            ON tx.transaction_id = sig.transaction_id
-            WHERE tx.status=0 AND 
-                    tx.multi_sig_address=(
-                        SELECT multi_sig_address 
-                        FROM multi_sig_signers 
-                        WHERE multi_sig_address=$1 AND signer_address=$2 LIMIT 1
-                    ) AND
-                    sig.signer_address<>$2
-        ";
+            SELECT tx.*
+            FROM transactions tx
+            WHERE tx.status = 0
+	            AND multi_sig_address=$1
+  	            AND EXISTS (
+			            SELECT 1
+      		            FROM multi_sig_signers ms
+      		            WHERE ms.multi_sig_address = tx.multi_sig_address AND ms.signer_address=$2
+			            LIMIT 1
+  	                )
+  	            AND NOT EXISTS (
+      		            SELECT 1 
+      		            FROM signatures sig 
+      		            WHERE sig.transaction_id = tx.transaction_id AND sig.signer_address=$2
+  	                )";
         let stmt = client.prepare(_stmt).await?;
 
         let transactions: Vec<CkbTransaction> = client
