@@ -25,8 +25,7 @@ pub const CKB_MAINNET_RPC: &str = "https://mainnet.ckb.dev/rpc";
 pub const JOYID_LOCK_SCRIPT_CODE_HASH: &str =
     "d23761b364210735c19c60561d213fb3beae2fd6172743719eff6920e020baac";
 
-pub fn get_explorer_api_url() -> String {
-    let network = get_ckb_network();
+pub fn get_explorer_api_url(network: NetworkType) -> String {
     if network == NetworkType::Mainnet {
         return CKB_MAINNET_EXPLORER_API.to_owned();
     }
