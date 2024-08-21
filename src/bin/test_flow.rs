@@ -3,7 +3,7 @@ use ckb_sdk::{
         builder::{CkbTransactionBuilder, SimpleTransactionBuilder},
         handler::HandlerContexts,
         input::InputIterator,
-        signer::{SignContexts, TransactionSigner},
+        signer::SignContexts,
         TransactionBuilderConfiguration,
     },
     unlock::MultisigConfig,
@@ -13,20 +13,29 @@ use ckb_types::{
     bytes::Bytes, core::Capacity, h160, h256, packed::Transaction, prelude::IntoTransactionView,
 };
 use std::{error::Error as StdErr, str::FromStr};
+use tokio::runtime::Runtime;
 use utxo_global_multi_sig_api::{
-    repositories::ckb::{add_signature_to_witness, get_multisig_config},
+    repositories::ckb::{add_signature_to_witness, get_multisig_config, send_transaction},
     serialize::multi_sig_account::SignerInfo,
+    services::overrided::{
+        MultiSigHandlerContext, OverrideMultisigConfig,
+        OverrideSecp256k1Blake160MultisigAllScriptHandler, TransactionSigner,
+    },
 };
 
 fn get_tx_group_with_script(multisig_config: &MultisigConfig) -> TransactionWithScriptGroups {
     let network_info = NetworkInfo::testnet();
 
-    let configuration =
+    let mut configuration =
         TransactionBuilderConfiguration::new_with_network(network_info.clone()).unwrap();
+    configuration.register_script_handler(Box::new(
+        OverrideSecp256k1Blake160MultisigAllScriptHandler::new().unwrap(),
+    ) as Box<_>);
+    configuration.fee_rate = 2000;
 
-    // ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqdunqvd3g2felqv6qer8pkydws8jg9qxlca0st5v
-    let sender = multisig_config.to_address(network_info.network_type, None);
-
+    // ckt1qpm9k0kk4cnykv6aqlnn4sejhukq7w8c6v6qa4fpedz8knzzm40sjq20eu9wnu5hp6ldrvpu69rxtksr3whw33qqqqqqqqqpqqsq7gpgtp
+    let sender = multisig_config.to_address_override(network_info.network_type, Some(0));
+    println!("{}", sender);
     let receiver = Address::from_str("ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8keemy2p5uu0g0gn8cd4ju23s5269qk8rg4r").unwrap();
 
     // Query to RPC to get the available cells
@@ -37,7 +46,9 @@ fn get_tx_group_with_script(multisig_config: &MultisigConfig) -> TransactionWith
     builder.add_output(&receiver, Capacity::shannons(510_0000_0000u64));
 
     builder
-        .build(&HandlerContexts::new_multisig(multisig_config.clone()))
+        .build(&HandlerContexts::new_override_multisig(
+            multisig_config.clone(),
+        ))
         .unwrap()
 }
 
@@ -58,7 +69,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
         2,
     )?;
     // ckt1qpw9q60tppt7l3j7r09qcp7lxnp3vcanvgha8pmvsa3jplykxn32sqdunqvd3g2felqv6qer8pkydws8jg9qxlca0st5v
-    let sender = multisig_config.to_address(network_info.network_type, None);
+    let sender = multisig_config.to_address_override(network_info.network_type, Some(0));
 
     // Get multi-sig config
     let (multi_sig_address, multi_sig_witness_data) = get_multisig_config(vec![
@@ -87,7 +98,6 @@ fn main() -> Result<(), Box<dyn StdErr>> {
 
     // ------ 2. Build new simple transfer ------
     let mut tx_with_groups = get_tx_group_with_script(&multisig_config);
-
     // ------ 3. Collect signatures into tx_group ------
 
     // signer 1
@@ -116,7 +126,9 @@ fn main() -> Result<(), Box<dyn StdErr>> {
             .clone()
             .into_bytes(),
     );
+    println!("multi_sig_config {}", multi_sig_witness_data);
     let witness_full = witness;
+    println!("witness_full {}", witness_full);
     let tx_hash = json_tx.hash;
     println!("witness full sign by lib {}", witness_full);
 
@@ -218,6 +230,9 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     assert_eq!(tx_hash, json_tx_2.hash);
 
     println!("tx: {}", serde_json::to_string_pretty(&json_tx_2).unwrap());
-    // send_transaction(tx, None);
+    let v = Runtime::new()
+        .unwrap()
+        .block_on(send_transaction(json_tx_2.inner, None));
+    println!("{:?}", v);
     Ok(())
 }

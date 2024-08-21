@@ -24,6 +24,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+          version: "1.80.0"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1

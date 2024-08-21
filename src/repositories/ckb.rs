@@ -3,8 +3,11 @@ use std::str::FromStr;
 use crate::config;
 use crate::serialize::error::AppError;
 use crate::serialize::multi_sig_account::SignerInfo;
+use crate::services::constants::TESTNET_MULTISIG_TYPE_HASH;
+use crate::services::overrided::OverrideMultisigConfig;
 use anyhow::anyhow;
 use ckb_jsonrpc_types::{CellWithStatus, OutputsValidator, Transaction};
+use ckb_sdk::constants::MULTISIG_TYPE_HASH;
 use ckb_sdk::unlock::{MultisigConfig, ScriptSignError};
 use ckb_sdk::{rpc::CkbRpcClient, NetworkType};
 use ckb_sdk::{Address, RpcError};
@@ -22,8 +25,7 @@ pub const CKB_MAINNET_RPC: &str = "https://mainnet.ckb.dev/rpc";
 pub const JOYID_LOCK_SCRIPT_CODE_HASH: &str =
     "d23761b364210735c19c60561d213fb3beae2fd6172743719eff6920e020baac";
 
-pub fn get_explorer_api_url() -> String {
-    let network = get_ckb_network();
+pub fn get_explorer_api_url(network: NetworkType) -> String {
     if network == NetworkType::Mainnet {
         return CKB_MAINNET_EXPLORER_API.to_owned();
     }
@@ -79,6 +81,14 @@ pub async fn send_transaction(
     })
     .await
     .unwrap()
+}
+
+pub fn get_multisig_script_hash() -> ckb_types::H256 {
+    let network: String = config::get("network");
+    match network.as_str() {
+        "mainnet" => MULTISIG_TYPE_HASH,
+        _ => TESTNET_MULTISIG_TYPE_HASH,
+    }
 }
 
 pub fn add_signature_to_witness(
@@ -176,7 +186,7 @@ pub fn get_multisig_config(
                 .message("cannot generate multisig address")
         })?;
 
-    let sender = multisig_config.to_address(network, None);
+    let sender = multisig_config.to_address_override(get_ckb_network(), Some(0));
     let mutli_sig_witness_data = hex::encode(multisig_config.to_witness_data());
 
     Ok((sender, mutli_sig_witness_data))

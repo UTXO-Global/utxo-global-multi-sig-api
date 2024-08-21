@@ -1,5 +1,6 @@
-use ckb_sdk::{constants::MULTISIG_TYPE_HASH, Address, AddressPayload, CodeHashIndex, NetworkType};
+use ckb_sdk::{Address, AddressPayload, CodeHashIndex, NetworkType};
 use ckb_types::{bytes::Bytes, core::ScriptHashType, h160, prelude::Pack};
+use utxo_global_multi_sig_api::services::constants::TESTNET_MULTISIG_TYPE_HASH;
 
 fn main() {
     // https://explorer.nervos.org/en/transaction/0x72a99e1fccd7ce2194cd703266ad29f337c74e0cd49400c8ab63c89c5d3ff73e
@@ -11,7 +12,7 @@ fn main() {
 
     let payload = AddressPayload::new_full(
         ScriptHashType::Type,
-        MULTISIG_TYPE_HASH.pack(),
+        TESTNET_MULTISIG_TYPE_HASH.pack(),
         Bytes::copy_from_slice(arg.as_bytes()),
     );
     let address = Address::new(NetworkType::Testnet, payload, true);
