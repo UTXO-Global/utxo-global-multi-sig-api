@@ -1,22 +1,14 @@
-use actix_multipart::Multipart;
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use deadpool_postgres::{Client, Pool, PoolError};
-use csv::ReaderBuilder;
-use futures_util::StreamExt as _;
-use serde::Serialize;
-use std::io::Cursor;
-use std::sync::Arc;
-// use futures::StreamExt;
-use serde::Deserialize;
-use std::io::{BufReader, BufWriter};
-use tokio_postgres::{Error, NoTls}; 
-#[derive(Debug, Deserialize, Serialize)] 
+use crate::{
+    serialize::{error::AppError, PaginationReq},
+    services::bounty_contest::{self, BountyContestSrv},
+};
+use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
+/*
+#[derive(Debug, Deserialize, Serialize)]
 struct Record {
-    Email: String, 
+    Email: String,
     Username: String,
     Points: i32,
-
-
 }
 
 #[derive(Clone, Debug)]
@@ -24,132 +16,118 @@ pub struct BountyDao {
     db: Arc<Pool>,
 }
 
-
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
 }
 
-impl BountyDao{
+impl BountyDao {
     pub fn new(db: Arc<Pool>) -> Self {
         BountyDao { db: db.clone() }
     }
 
+    // Use default implementation for `error_response()` method
 
-
-
-// Use default implementation for `error_response()` method
-
-
-    pub async fn api(&self, mut payload: Multipart) -> (actix_web::Result<HttpResponse>){
-    // Iterate over the multipart stream
-    let mut results: Vec<Record> = Vec::new();
-    while let Some(item) = payload.next().await {
-        let mut field = item?;
-        // Field in turn is stream of *Bytes* object
-        let mut data = web::BytesMut::new();
-        while let Some(chunk) = field.next().await {
-            let chunk = chunk.unwrap();
-            data.extend_from_slice(&chunk);
+    pub async fn api(&self, mut payload: Multipart) -> (actix_web::Result<HttpResponse>) {
+        // Iterate over the multipart stream
+        let mut results: Vec<Record> = Vec::new();
+        while let Some(item) = payload.next().await {
+            let mut field = item?;
+            // Field in turn is stream of *Bytes* object
+            let mut data = web::BytesMut::new();
+            while let Some(chunk) = field.next().await {
+                let chunk = chunk.unwrap();
+                data.extend_from_slice(&chunk);
+            }
+            // Parse the CSV content
+            let mut reader = ReaderBuilder::new()
+                .has_headers(true)
+                .from_reader(Cursor::new(&data));
+            for result in reader.deserialize() {
+                let record: Record = result.unwrap();
+                results.push(record);
+            }
         }
-        // Parse the CSV content
-        let mut reader = ReaderBuilder::new()
-            .has_headers(true)
-            .from_reader(Cursor::new(&data));
-        for result in reader.deserialize() {
-            let record: Record = result.unwrap();
-            results.push(record);
+        // Connect to the database
+        let client: Client = self.db.get().await?;
+
+        // Spawn the connection to run in the background
+
+        // Spawn the connection to run in the background
+
+        for record in &results {
+            // Check if the email exists in the RANKINGS table
+            let row = client
+                .query_opt(
+                    "SELECT points FROM RANKINGS WHERE email = $1",
+                    &[&record.Email],
+                )
+                .await
+                .unwrap();
+
+            if let Some(row) = row {
+                // Email exists, update the points
+                let current_points: i32 = row.get(0);
+                let new_points = current_points + record.Points;
+                client
+                    .execute(
+                        "UPDATE RANKINGS SET points = $1 WHERE email = $2",
+                        &[&new_points, &record.Email],
+                    )
+                    .await
+                    .unwrap();
+                println!("Updated points for {}", record.Email);
+            } else {
+                // Email does not exist, insert a new record
+                client
+                    .execute(
+                        "INSERT INTO RANKINGS (email, username, points) VALUES ($1, $2, $3)",
+                        &[&record.Email, &record.Username, &record.Points],
+                    )
+                    .await
+                    .unwrap();
+                println!("Inserted new record for {}", record.Email);
+            }
         }
+        Ok(HttpResponse::Ok().json(results))
     }
-    // Connect to the database
-    let client: Client = self.db.get().await?;
- 
 
-    
+    pub async fn dashboard(
+        &self,
+        query: web::Query<PagingParams>,
+    ) -> actix_web::Result<HttpResponse> {
+        let page: i64 = query.page.unwrap_or(1).try_into().unwrap();
+        let per_page: i64 = query.per_page.unwrap_or(10).try_into().unwrap();
+        let client: Client = self.db.get().await?;
 
-    // Spawn the connection to run in the background
-  
-
-    // Spawn the connection to run in the background
-    
-
-    for record in &results {
-        // Check if the email exists in the RANKINGS table
-        let row = client
-            .query_opt(
-                "SELECT points FROM RANKINGS WHERE email = $1",
-                &[&record.Email],
+        // Query to fetch items and total count from the database
+        let offset: i64 = (page - 1) * per_page;
+        let rows = client
+            .query(
+                "SELECT * FROM RANKINGS ORDER BY Points DESC LIMIT $1 OFFSET $2 ",
+                &[&per_page, &offset],
             )
             .await
             .unwrap();
+        let total_items_row = client
+            .query_one("SELECT COUNT(*) FROM rankings", &[])
+            .await
+            .unwrap();
 
-        if let Some(row) = row {
-            // Email exists, update the points
-            let current_points: i32 = row.get(0);
-            let new_points = current_points + record.Points;
-            client
-                .execute(
-                    "UPDATE RANKINGS SET points = $1 WHERE email = $2",
-                    &[&new_points, &record.Email],
-                )
-                .await
-                .unwrap();
-            println!("Updated points for {}", record.Email);
-        } else {
-            // Email does not exist, insert a new record
-            client
-                .execute(
-                    "INSERT INTO RANKINGS (email, username, points) VALUES ($1, $2, $3)",
-                    &[&record.Email, &record.Username, &record.Points],
-                )
-                .await
-                .unwrap();
-            println!("Inserted new record for {}", record.Email);
-        }
+        let total_items: i64 = total_items_row.get(0);
+        let items: Vec<Record> = rows
+            .iter()
+            .map(|row| Record {
+                Email: row.get(0),
+                Username: row.get(1),
+                Points: row.get(2),
+            })
+            .collect();
+
+        //let html = render_html(&items, page, per_page, total_items);
+
+        Ok(HttpResponse::Ok().json(items))
     }
-    Ok(HttpResponse::Ok().json(results))
 }
-
-    pub async fn dashboard(&self,query: web::Query<PagingParams>) -> actix_web::Result<HttpResponse> {
-    let page: i64 = query.page.unwrap_or(1).try_into().unwrap();
-    let per_page: i64 = query.per_page.unwrap_or(10).try_into().unwrap();
-    let client: Client = self.db.get().await?;
-
-
-    // Query to fetch items and total count from the database
-    let offset: i64 = (page - 1) * per_page;
-    let rows = client
-        .query(
-            "SELECT * FROM RANKINGS ORDER BY Points DESC LIMIT $1 OFFSET $2 ",
-            &[&per_page, &offset],
-        )
-        .await
-        .unwrap();
-    let total_items_row = client
-        .query_one("SELECT COUNT(*) FROM rankings", &[])
-        .await
-        .unwrap();
-
-    let total_items: i64 = total_items_row.get(0);
-    let items: Vec<Record> = rows
-        .iter()
-        .map(|row| Record {
-            Email: row.get(0),
-            Username: row.get(1),
-            Points: row.get(2),
-        })
-        .collect();
-
-    //let html = render_html(&items, page, per_page, total_items);
-   
-    Ok(HttpResponse::Ok().json(items))
-}
-
-}
-
-
-
-
-
 
 #[derive(Deserialize)]
 struct PagingParams {
@@ -208,15 +186,31 @@ fn render_html(items: &[Record], page: i64, per_page: i64, total_items: i64) -> 
     html.push_str("</div></body></html>");
     html
 }
+ */
 
+// TODO: @Broustail : 8
+// Define all request here
+// Example: request dashboard
+// Handler will receive request and call service to handle request
 
-
-
+async fn request_dashboard(
+    pagination: web::Query<PaginationReq>,
+    bounty_contest_srv: web::Data<BountyContestSrv>,
+) -> Result<HttpResponse, AppError> {
+    // TODO: @Broustail: dashboard request
+    // Call bounty_contest_srv to handle request
+    match bounty_contest_srv
+        .get_dashboard(pagination.into_inner())
+        .await
+    {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
+    }
+}
 pub fn route(conf: &mut web::ServiceConfig) {
     conf.service(
-        web::scope("/bounty_contest")
-            .route("/", web::post().to(api))
-            .route("/", web::get().to(dashboard))
-            
+        // TODO: @Broustail : 9
+        // Define router
+        web::scope("/bounty_contest").route("/dashboard", web::get().to(request_dashboard)),
     );
 }

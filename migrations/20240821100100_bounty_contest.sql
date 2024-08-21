@@ -1,0 +1,3 @@
+-- Add migration script here
+-- TODO: @Broustail
+-- Define your tables here
