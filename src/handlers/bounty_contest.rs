@@ -1,16 +1,15 @@
-use crate::{
-    serialize::{error::AppError, PaginationReq},
-    services::bounty_contest::{self, BountyContestSrv},
-};
-use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
-/*
-#[derive(Debug, Deserialize, Serialize)]
-struct Record {
-    Email: String,
-    Username: String,
-    Points: i32,
-}
+use std::io::Cursor;
 
+use crate::{
+    models::bounty_contest::BountyContestLeaderboard,
+    serialize::{error::AppError, PaginationReq},
+    services::bounty_contest::BountyContestSrv,
+};
+use actix_multipart::Multipart;
+use actix_web::{web, HttpResponse};
+use csv::ReaderBuilder;
+use futures_util::StreamExt as _;
+/*
 #[derive(Clone, Debug)]
 pub struct BountyDao {
     db: Arc<Pool>,
@@ -188,29 +187,45 @@ fn render_html(items: &[Record], page: i64, per_page: i64, total_items: i64) -> 
 }
  */
 
-// TODO: @Broustail : 8
-// Define all request here
-// Example: request dashboard
-// Handler will receive request and call service to handle request
+async fn submit_points(
+    mut payload: Multipart,
+    bounty_contest_srv: web::Data<BountyContestSrv>,
+) -> Result<HttpResponse, AppError> {
+    let mut results: Vec<BountyContestLeaderboard> = Vec::new();
+    while let Some(item) = payload.next().await {
+        if let Ok(i) = item {
+            let mut field = i;
+            // Field in turn is stream of *Bytes* object
+            let mut data = web::BytesMut::new();
+            while let Some(chunk) = field.next().await {
+                let chunk = chunk.unwrap();
+                data.extend_from_slice(&chunk);
+            }
+
+            // Parse the CSV content
+            let mut reader = ReaderBuilder::new()
+                .has_headers(true)
+                .from_reader(Cursor::new(&data));
+            for result in reader.deserialize() {
+                let record: BountyContestLeaderboard = result.unwrap();
+                results.push(record);
+            }
+        }
+    }
+    Ok(HttpResponse::Ok().json(results))
+}
 
 async fn request_dashboard(
     pagination: web::Query<PaginationReq>,
     bounty_contest_srv: web::Data<BountyContestSrv>,
 ) -> Result<HttpResponse, AppError> {
-    // TODO: @Broustail: dashboard request
-    // Call bounty_contest_srv to handle request
-    match bounty_contest_srv
-        .get_dashboard(pagination.into_inner())
-        .await
-    {
-        Ok(res) => Ok(HttpResponse::Ok().json(res)),
-        Err(err) => Err(err),
-    }
+    Ok(HttpResponse::Ok().json("hello"))
 }
+
 pub fn route(conf: &mut web::ServiceConfig) {
     conf.service(
-        // TODO: @Broustail : 9
-        // Define router
-        web::scope("/bounty_contest").route("/dashboard", web::get().to(request_dashboard)),
+        web::scope("/bounty-contest")
+            .route("/points", web::post().to(submit_points))
+            .route("/dashboard", web::get().to(request_dashboard)),
     );
 }

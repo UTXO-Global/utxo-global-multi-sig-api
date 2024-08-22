@@ -1,8 +1,7 @@
+use crate::models::bounty_contest::BountyContestLeaderboard;
 use deadpool_postgres::{Client, Pool, PoolError};
 use std::sync::Arc;
 use tokio_pg_mapper::FromTokioPostgresRow;
-
-use crate::models::bounty_contest::BountyContest;
 
 #[derive(Clone, Debug)]
 pub struct BountyContestDao {
@@ -14,26 +13,22 @@ impl BountyContestDao {
         BountyContestDao { db: db.clone() }
     }
 
-    // TODO: @Broustail : 2
-    // Define your fn to connect to db
-
     pub async fn get_dashboard(
         &self,
         page: i16,
         limit: i16,
-    ) -> Result<Vec<BountyContest>, PoolError> {
-        // TODO: @Broustail: Example get rankings
-        let offset = (page - 1) * limit;
+    ) -> Result<Vec<BountyContestLeaderboard>, PoolError> {
         let client: Client = self.db.get().await?;
 
-        let stmt = "SELECT * FROM RANKINGS ORDER BY Points DESC LIMIT $1 OFFSET $2 ";
+        let _stmt = "SELECT * FROM RANKINGS ORDER BY Points DESC LIMIT $1 OFFSET $2;";
+        let stmt = client.prepare(_stmt).await?;
 
         let results = client
-            .query(stmt, &[&page, &offset])
+            .query(&stmt, &[&page, &limit])
             .await?
             .iter()
-            .map(|row| BountyContest::from_row_ref(row).unwrap())
-            .collect::<Vec<BountyContest>>();
+            .map(|row| BountyContestLeaderboard::from_row_ref(row).unwrap())
+            .collect::<Vec<BountyContestLeaderboard>>();
 
         Ok(results)
     }

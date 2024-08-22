@@ -59,3 +59,7 @@ ckb-hash = "0.117.0"
 secp256k1 = "0.29.0"
 time = "0.3.36"
 reqwest = { version = "0.12.5", features = ["json"] }
+actix-multipart = "0.7.2"
+futures-util = "0.3.30"
+futures = "0.3.30"
+csv = "1.3.0"
