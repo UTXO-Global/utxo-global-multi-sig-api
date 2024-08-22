@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use ckb_sdk::NetworkType;
 use reqwest::{header, Client};
 use serde_json::Value;
@@ -49,27 +49,33 @@ async fn proxy_request(
 
 async fn ckb_handle_get_request(
     path: web::Path<(String, String)>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     let (network, url) = path.into_inner();
-    proxy_request("GET", &network, &url, None).await
+    let url_and_query = format!("{}?{}", url, req.query_string());
+    proxy_request("GET", &network, &url_and_query, None).await
 }
 
 async fn ckb_handle_post_request(
     req_body: web::Json<Value>,
     path: web::Path<(String, String)>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     let (network, url) = path.into_inner();
+    let url_and_query = format!("{}?{}", url, req.query_string());
     let body = Some(req_body.to_string());
-    proxy_request("POST", &network, &url, body).await
+    proxy_request("POST", &network, &url_and_query, body).await
 }
 
 async fn ckb_handle_put_request(
     req_body: web::Json<Value>,
     path: web::Path<(String, String)>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     let (network, url) = path.into_inner();
+    let url_and_query = format!("{}?{}", url, req.query_string());
     let body = Some(req_body.to_string());
-    proxy_request("POST", &network, &url, body).await
+    proxy_request("POST", &network, &url_and_query, body).await
 }
 
 pub fn route(conf: &mut web::ServiceConfig) {
