@@ -212,6 +212,7 @@ async fn submit_points(
             }
         }
     }
+    bounty_contest_srv.process_points(results);
     Ok(HttpResponse::Ok().json(results))
 }
 
@@ -219,7 +220,9 @@ async fn request_dashboard(
     pagination: web::Query<PaginationReq>,
     bounty_contest_srv: web::Data<BountyContestSrv>,
 ) -> Result<HttpResponse, AppError> {
-    Ok(HttpResponse::Ok().json("hello"))
+
+    let results = bounty_contest_srv.get_dashboard();
+    Ok(HttpResponse::Ok().json(results))
 }
 
 pub fn route(conf: &mut web::ServiceConfig) {
