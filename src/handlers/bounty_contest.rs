@@ -5,6 +5,7 @@ use crate::{
     serialize::{error::AppError, PaginationReq},
     services::bounty_contest::BountyContestSrv,
 };
+
 use actix_multipart::Multipart;
 use actix_web::{web, HttpResponse};
 use csv::ReaderBuilder;
@@ -212,7 +213,7 @@ async fn submit_points(
             }
         }
     }
-    bounty_contest_srv.process_points(results);
+    bounty_contest_srv.process_points(results.clone());
     Ok(HttpResponse::Ok().json(results))
 }
 
@@ -221,7 +222,7 @@ async fn request_dashboard(
     bounty_contest_srv: web::Data<BountyContestSrv>,
 ) -> Result<HttpResponse, AppError> {
 
-    let results = bounty_contest_srv.get_dashboard();
+    let results = bounty_contest_srv.get_dashboard(pagination.page, pagination.limit).await.unwrap();
     Ok(HttpResponse::Ok().json(results))
 }
 

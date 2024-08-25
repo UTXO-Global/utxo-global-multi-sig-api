@@ -33,3 +33,4 @@ pub mod error;
 pub mod multi_sig_account;
 pub mod transaction;
 pub mod user;
+pub mod bounty_contest;
