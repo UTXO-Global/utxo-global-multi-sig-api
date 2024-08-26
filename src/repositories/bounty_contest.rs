@@ -30,9 +30,10 @@ impl BountyContestDao {
 
     pub async fn get_dashboard(
         &self,
-        page: i16,
-        limit: i16,
+        page: i64,
+        limit: i64,
     ) -> Result<Vec<BountyContestLeaderboard>, PoolError> {
+        let offset = (page - 1) * limit;
         let client: Client = self.db.get().await?;
 
         let _stmt =
@@ -40,7 +41,7 @@ impl BountyContestDao {
         let stmt = client.prepare(_stmt).await?;
 
         let results = client
-            .query(&stmt, &[&page, &limit])
+            .query(&stmt, &[&limit, &offset])
             .await?
             .iter()
             .map(|row| BountyContestLeaderboard::from_row_ref(row).unwrap())

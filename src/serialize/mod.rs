@@ -18,8 +18,8 @@ pub struct PaginationRes {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PaginationReq {
-    pub page: i16,
-    pub limit: i16,
+    pub page: i64,
+    pub limit: i64,
 }
 
 pub mod address_book;

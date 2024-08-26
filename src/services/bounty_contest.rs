@@ -31,24 +31,16 @@ impl BountyContestSrv {
                 let current_points: i32 = row.points;
                 let new_points = record.points + current_points;
 
-                match self
+                let _ = self
                     .bounty_contest_dao
                     .update_bc(&record.email, new_points)
-                    .await
-                {
-                    Ok(_) => return Ok(true),
-                    Err(err) => return Err(AppError::new(500).message(&err.to_string())),
-                }
+                    .await;
             } else {
                 // Email does not exist, insert a new record
-                match self
+                let _ = self
                     .bounty_contest_dao
                     .insert_bc(&record.email, &record.username, record.points)
-                    .await
-                {
-                    Ok(_) => return Ok(true),
-                    Err(err) => return Err(AppError::new(500).message(&err.to_string())),
-                }
+                    .await;
             }
         } // check email exist or not
 
@@ -56,30 +48,25 @@ impl BountyContestSrv {
     }
     pub async fn get_dashboard(
         &self,
-        page: i16,
-        per_page: i16,
+        page: i64,
+        per_page: i64,
     ) -> Result<BountyContestLeaderboardRes, AppError> {
-        let rows = self.bounty_contest_dao.get_dashboard(page, per_page).await;
-        let total_items = self.bounty_contest_dao.get_count().await;
-        let total_page: i64 = 0;
+        let total_items = self.bounty_contest_dao.get_count().await.unwrap_or(0);
+        let res = self
+            .bounty_contest_dao
+            .get_dashboard(page, per_page)
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))
+            .unwrap();
 
-        // let items: Vec<BountyContestLeaderboard> = rows
-        //     .iter()
-        //     .map(|row| BountyContestLeaderboard {
-        //         email: row.get(0),
-        //         username: row.get(1),
-        //         points: row.get(2),
-        //         created_at: row.get(3),
-        //         updated_at : row.get(4)
-        //     })
-        //     .collect();
+        let total_page = total_items as f64 / per_page as f64;
         Ok(BountyContestLeaderboardRes {
-            items: rows.unwrap(),
+            items: res,
             pagination: PaginationRes {
                 page: page as i64,
                 limit: per_page as i64,
-                total_records: total_items.unwrap(),
-                total_page: total_page,
+                total_records: total_items,
+                total_page: total_page.ceil() as i64,
             },
         })
     }
