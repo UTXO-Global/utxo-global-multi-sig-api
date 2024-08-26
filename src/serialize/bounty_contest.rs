@@ -8,8 +8,3 @@ pub struct BountyContestLeaderboardRes {
     pub items: Vec<BountyContestLeaderboard>,
     pub pagination: PaginationRes,
 }
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct BountyContestDataReq {
-    pub secret: String,
-}

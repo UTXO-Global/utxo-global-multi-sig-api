@@ -10,8 +10,8 @@ pub struct BountyContestLeaderboard {
     pub points: i32,
 
     #[serde(skip_serializing)]
-    pub created_at: NaiveDateTime,
+    pub created_at: Option<NaiveDateTime>,
 
     #[serde(skip_serializing)]
-    pub updated_at: NaiveDateTime,
+    pub updated_at: Option<NaiveDateTime>,
 }

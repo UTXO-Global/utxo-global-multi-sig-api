@@ -16,6 +16,7 @@ impl BountyContestSrv {
             bounty_contest_dao: bounty_contest_dao.clone(),
         }
     }
+
     pub async fn process_points(
         &self,
         req: Vec<BountyContestLeaderboard>,
@@ -30,16 +31,27 @@ impl BountyContestSrv {
                 let current_points: i32 = row.points;
                 let new_points = record.points + current_points;
 
-                let updating = self.bounty_contest_dao.update_bc(&record.email, new_points);
+                match self
+                    .bounty_contest_dao
+                    .update_bc(&record.email, new_points)
+                    .await
+                {
+                    Ok(_) => return Ok(true),
+                    Err(err) => return Err(AppError::new(500).message(&err.to_string())),
+                }
             } else {
                 // Email does not exist, insert a new record
-                let inserting = self.bounty_contest_dao.insert_bc(
-                    &record.email,
-                    &record.username,
-                    record.points,
-                );
+                match self
+                    .bounty_contest_dao
+                    .insert_bc(&record.email, &record.username, record.points)
+                    .await
+                {
+                    Ok(_) => return Ok(true),
+                    Err(err) => return Err(AppError::new(500).message(&err.to_string())),
+                }
             }
         } // check email exist or not
+
         Ok(true)
     }
     pub async fn get_dashboard(

@@ -8,7 +8,6 @@ use crate::{
 
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
-use base64::read;
 use csv::ReaderBuilder;
 use futures_util::StreamExt as _;
 

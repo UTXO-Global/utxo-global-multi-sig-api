@@ -18,7 +18,7 @@ impl BountyContestDao {
     ) -> Result<Option<BountyContestLeaderboard>, PoolError> {
         let client: Client = self.db.get().await?;
 
-        let _stmt = "SELECT * FROM RANKINGS WHERE email=$1;";
+        let _stmt = "SELECT * FROM bounty_contest_leaderboard WHERE email=$1;";
         match client.query_opt(_stmt, &[email]).await? {
             Some(row) => {
                 let bc = BountyContestLeaderboard::from_row_ref(&row).unwrap();
@@ -35,7 +35,8 @@ impl BountyContestDao {
     ) -> Result<Vec<BountyContestLeaderboard>, PoolError> {
         let client: Client = self.db.get().await?;
 
-        let _stmt = "SELECT * FROM RANKINGS ORDER BY Points DESC LIMIT $1 OFFSET $2;";
+        let _stmt =
+            "SELECT * FROM bounty_contest_leaderboard ORDER BY Points DESC LIMIT $1 OFFSET $2;";
         let stmt = client.prepare(_stmt).await?;
 
         let results = client
@@ -51,7 +52,7 @@ impl BountyContestDao {
     pub async fn update_bc(&self, email: &String, points: i32) -> Result<bool, PoolError> {
         let client: Client = self.db.get().await?;
 
-        let _stmt = "UPDATE bounty_contest_leaderboard SET points = $1 WHERE email = $2, updated_at = NOW()";
+        let _stmt = "UPDATE bounty_contest_leaderboard SET points = $1 WHERE email = $2";
         let stmt = client.prepare(_stmt).await?;
         let res = client.execute(&stmt, &[&points, &email]).await?;
         Ok(res > 0)
@@ -65,7 +66,8 @@ impl BountyContestDao {
     ) -> Result<bool, PoolError> {
         let client: Client = self.db.get().await?;
 
-        let _stmt = "INSERT INTO RANKINGS (email, username, points) VALUES ($1, $2, $3), updated_at = NOW()";
+        let _stmt =
+            "INSERT INTO bounty_contest_leaderboard (email, username, points) VALUES ($1, $2, $3)";
         let stmt = client.prepare(_stmt).await?;
         let res = client.execute(&stmt, &[&email, &username, &points]).await?;
         Ok(res > 0)
@@ -73,7 +75,7 @@ impl BountyContestDao {
 
     pub async fn get_count(&self) -> Result<i64, PoolError> {
         let client: Client = self.db.get().await?;
-        let _stmt = "SELECT count(*) FROM rankings";
+        let _stmt = "SELECT count(*) FROM bounty_contest_leaderboard";
         match client.query_opt(_stmt, &[]).await? {
             Some(row) => {
                 let total_items: i64 = row.get(0);
