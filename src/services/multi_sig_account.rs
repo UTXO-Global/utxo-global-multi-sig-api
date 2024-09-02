@@ -212,7 +212,7 @@ impl MultiSigSrv {
         user_address: &String,
         req: NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, AppError> {
-        let (sender, mutli_sig_witness_data) =
+        let (sender, multi_sig_witness_data) =
             get_multisig_config(req.signers.clone(), req.threshold as u8)?;
 
         let mut client = DB_POOL.clone().get().await.unwrap();
@@ -233,7 +233,7 @@ impl MultiSigSrv {
             .create_new_account(
                 &transaction,
                 &sender.to_string(),
-                &mutli_sig_witness_data,
+                &multi_sig_witness_data,
                 &req,
             )
             .await
@@ -517,7 +517,7 @@ impl MultiSigSrv {
             let tx = add_signature_to_witness(
                 multi_sig_info.threshold as usize,
                 tx,
-                &multi_sig_info.mutli_sig_witness_data,
+                &multi_sig_info.multi_sig_witness_data,
                 signatures,
             )
             .map_err(|err| {
