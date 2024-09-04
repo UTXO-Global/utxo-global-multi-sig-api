@@ -187,7 +187,7 @@ pub fn get_multisig_config(
         })?;
 
     let sender = multisig_config.to_address_override(get_ckb_network(), Some(0));
-    let mutli_sig_witness_data = hex::encode(multisig_config.to_witness_data());
+    let multi_sig_witness_data = hex::encode(multisig_config.to_witness_data());
 
-    Ok((sender, mutli_sig_witness_data))
+    Ok((sender, multi_sig_witness_data))
 }

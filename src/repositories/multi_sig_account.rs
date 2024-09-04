@@ -220,10 +220,10 @@ impl MultiSigDao {
         &self,
         tx: &Transaction<'_>,
         multi_sig_address: &String,
-        mutli_sig_witness_data: &String,
+        multi_sig_witness_data: &String,
         req: &NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, PoolError> {
-        let stmt: &str = "INSERT INTO multi_sig_info (multi_sig_address, threshold, signers, name, mutli_sig_witness_data) VALUES ($1, $2, $3, $4, $5);";
+        let stmt: &str = "INSERT INTO multi_sig_info (multi_sig_address, threshold, signers, name, multi_sig_witness_data) VALUES ($1, $2, $3, $4, $5);";
 
         tx.execute(
             stmt,
@@ -232,7 +232,7 @@ impl MultiSigDao {
                 &req.threshold,
                 &(req.signers.len() as i16),
                 &req.name,
-                mutli_sig_witness_data,
+                multi_sig_witness_data,
             ],
         )
         .await?;
@@ -241,7 +241,7 @@ impl MultiSigDao {
             threshold: req.threshold,
             signers: req.signers.len() as i16,
             name: req.name.clone(),
-            mutli_sig_witness_data: mutli_sig_witness_data.clone(),
+            multi_sig_witness_data: multi_sig_witness_data.clone(),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
