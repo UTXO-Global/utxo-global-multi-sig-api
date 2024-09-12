@@ -22,6 +22,7 @@ pub struct MultiSigInfo {
     pub threshold: i16,
     pub signers: i16,
     pub name: String,
+    pub multi_sig_witness_data: String,
 
     #[serde(skip_serializing)]
     pub created_at: NaiveDateTime,

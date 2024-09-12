@@ -2,11 +2,25 @@
 name = "utxo-global-multi-sig-api"
 version = "0.1.0"
 edition = "2021"
+default-run = "app"
 
-[features]
-default = ["three"]
-three = []
-five = []
+[[bin]]
+name = "test_address"
+test = false
+bench = false
+
+[[bin]]
+name = "test_multisign"
+test = false
+bench = false
+
+[[bin]]
+name = "test_flow"
+test = false
+bench = false
+
+[package.metadata.clippy]
+skip-deps = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,7 +29,6 @@ actix-web = "4.5.1"
 base64 = "0.21.7"
 chrono = { version = "0.4.31", features = ["serde"] }
 dotenv = "0.15.0"
-ethers = { version = "2.0.13" }
 tokio = { version = "1", features = ["full"] }
 r2d2 = "0.8.10"
 rand = "0.8.5"
@@ -33,5 +46,16 @@ tokio-postgres = { version = "0.7.10", features = ["with-chrono-0_4"] }
 deadpool-postgres = { version = "0.12.1", features = ["serde"] }
 tokio-pg-mapper = { version = "0.2.0", features = ["tokio-pg-mapper-derive"] }
 tokio-pg-mapper-derive = "0.2.0"
-ckb-sdk = "3.2.1"
-ckb-types = "0.116.1"
+ckb-sdk = "3.3.0"
+ckb-types = "0.117.0"
+ckb-jsonrpc-types = "0.117.0"
+anyhow = "1.0.86"
+hex = "0.4.3"
+log = "0.4.22"
+openssl = { version = "0.10.64", features = ["vendored"] }
+rust-crypto = "0.2.36"
+ckb-crypto = "0.116.1"
+ckb-hash = "0.117.0"
+secp256k1 = "0.29.0"
+time = "0.3.36"
+reqwest = { version = "0.12.5", features = ["json"] }

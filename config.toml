@@ -1,6 +1,4 @@
 listen_address = '127.0.0.1:8080'
 database_url = 'postgres://postgres:123456@127.0.0.1:5432/utxo-global-multi-sig'
 network = 'testnet'
-jwt_secret = 'R0sh3mb0'
-max_win_streak = '1'
-app_mode = ''
+jwt_secret = ''
