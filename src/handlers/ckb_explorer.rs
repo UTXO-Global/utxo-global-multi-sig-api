@@ -5,7 +5,6 @@ use serde_json::Value;
 
 use crate::{repositories::ckb::get_explorer_api_url, serialize::error::AppError};
 
-// Proxy request đến server đích
 async fn proxy_request(
     method: &str,
     network: &str,
@@ -28,7 +27,8 @@ async fn proxy_request(
 
     request_builder = request_builder
         .header(header::ACCEPT, "application/vnd.api+json")
-        .header(header::CONTENT_TYPE, "application/vnd.api+json");
+        .header(header::CONTENT_TYPE, "application/vnd.api+json")
+        .header(header::USER_AGENT, "curl/7.68.0");
 
     if let Some(body) = body {
         request_builder = request_builder.body(body);
