@@ -825,7 +825,7 @@ impl MultiSigSrv {
         for tx_hash in req.tx_hashes.iter() {
             if let Some(transaction) = self
                 .multi_sig_dao
-                .get_tx_by_hash(&tx_hash)
+                .get_tx_by_hash(tx_hash)
                 .await
                 .ok()
                 .flatten()
@@ -833,7 +833,7 @@ impl MultiSigSrv {
                 if transaction.status.eq(&TRANSACTION_STATUS_PENDING) {
                     if let Ok(true) = self
                         .multi_sig_dao
-                        .update_transaction_status(&tx_hash, TRANSACTION_STATUS_COMMITED)
+                        .update_transaction_status(tx_hash, TRANSACTION_STATUS_COMMITED)
                         .await
                     {
                         results.insert(tx_hash.clone(), true);
