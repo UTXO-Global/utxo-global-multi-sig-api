@@ -299,8 +299,7 @@ impl MultiSigDao {
     pub async fn get_tx_by_hash(&self, txid: &String) -> Result<Option<CkbTransaction>, PoolError> {
         let client: Client = self.db.get().await?;
 
-        let _stmt = "SELECT * FROM transactions 
-            WHERE transaction_id=$1;";
+        let _stmt = "SELECT * FROM transactions WHERE transaction_id=$1;";
         let stmt = client.prepare(_stmt).await?;
 
         let row = client.query(&stmt, &[&txid]).await?.pop();

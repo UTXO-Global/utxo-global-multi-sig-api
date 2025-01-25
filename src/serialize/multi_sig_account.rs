@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::models::{multi_sig_account::MultiSigSigner, multi_sig_invite::MultiSigInvite};
@@ -61,4 +63,14 @@ pub struct InviteInfo {
 pub struct ListSignerRes {
     pub signers: Vec<MultiSigSigner>,
     pub invites: Vec<MultiSigInvite>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UpdateTransactionStatusReq {
+    pub tx_hashes: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UpdateTransactionStatusRes {
+    pub results: HashMap<String, bool>,
 }
