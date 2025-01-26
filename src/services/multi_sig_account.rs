@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::models::multi_sig_invite::MultiSigInviteStatus;
 use crate::models::multi_sig_tx::{
     CkbTransaction, TRANSACTION_STATUS_COMMITED, TRANSACTION_STATUS_FAILED,
-    TRANSACTION_STATUS_PENDING, TRANSACTION_STATUS_REJECT,
+    TRANSACTION_STATUS_IN_PROGRESSING, TRANSACTION_STATUS_PENDING, TRANSACTION_STATUS_REJECT,
 };
 use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
@@ -830,7 +830,9 @@ impl MultiSigSrv {
                 .ok()
                 .flatten()
             {
-                if transaction.status.eq(&TRANSACTION_STATUS_PENDING) {
+                if transaction.status.eq(&TRANSACTION_STATUS_PENDING)
+                    || transaction.status.eq(&TRANSACTION_STATUS_IN_PROGRESSING)
+                {
                     if let Ok(true) = self
                         .multi_sig_dao
                         .update_transaction_status(tx_hash, TRANSACTION_STATUS_COMMITED)
