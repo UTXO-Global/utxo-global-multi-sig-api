@@ -1,9 +1,9 @@
 ######################
 #### Running stage
 ######################
-FROM ubuntu:22.04 as runtime
+FROM ubuntu:24.04 as runtime
 
-RUN apt update && apt install curl tzdata libpq5 -y
+RUN apt update && apt install curl tzdata libpq5 libc6 -y
 RUN adduser \
     --disabled-password \
     --gecos "" \
