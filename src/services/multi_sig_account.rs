@@ -216,11 +216,11 @@ impl MultiSigSrv {
         req: NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, AppError> {
         if req.signers.len() < 2 {
-            return Err(AppError::new(400).message("Threshold must be greater than one"));
+            return Err(AppError::new(400).message("There must be more than one signer"));
         }
 
         if req.threshold < 2 {
-            return Err(AppError::new(400).message("Threshold must be greater than 1"));
+            return Err(AppError::new(400).message("Threshold must be greater than one"));
         }
 
         let (sender, multi_sig_witness_data) =
