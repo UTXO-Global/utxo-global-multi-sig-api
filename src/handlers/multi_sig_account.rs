@@ -194,6 +194,10 @@ async fn create_new_transfer(
         ext.get::<String>().unwrap().clone()
     };
 
+    if req.signature.is_empty() {
+        return Err(AppError::new(400).message("Signature Invalid"));
+    }
+
     match multi_sig_srv
         .create_new_transfer(&user_address, &req.signature, &req.payload)
         .await
@@ -213,6 +217,14 @@ async fn submit_signature(
         let ext = http_req.extensions();
         ext.get::<String>().unwrap().clone()
     };
+
+    if req.txid.is_empty() {
+        return Err(AppError::new(400).message("Transaction Invalid"));
+    }
+
+    if req.signature.is_empty() {
+        return Err(AppError::new(400).message("Signature Invalid"));
+    }
 
     match multi_sig_srv
         .submit_signature(&user_address, &req.signature, &req.txid)
