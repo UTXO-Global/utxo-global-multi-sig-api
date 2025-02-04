@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use crate::models::multi_sig_invite::MultiSigInviteStatus;
 use crate::models::multi_sig_tx::{
-    CkbTransaction, TRANSACTION_STATUS_FAILED, TRANSACTION_STATUS_PENDING,
-    TRANSACTION_STATUS_REJECT,
+    CkbTransaction, TRANSACTION_STATUS_COMMITED, TRANSACTION_STATUS_FAILED,
+    TRANSACTION_STATUS_IN_PROGRESSING, TRANSACTION_STATUS_PENDING, TRANSACTION_STATUS_REJECT,
 };
 use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
@@ -11,6 +13,7 @@ use crate::repositories::ckb::{
 use crate::repositories::db::DB_POOL;
 use crate::serialize::multi_sig_account::{
     InviteInfo, InviteStatusReq, ListSignerRes, MultiSigAccountUpdateReq, TransactionFilters,
+    UpdateTransactionStatusReq, UpdateTransactionStatusRes,
 };
 use crate::serialize::transaction::{ListTransactionsRes, TransactionInfo, TransactionSumary};
 use crate::serialize::PaginationRes;
@@ -212,6 +215,14 @@ impl MultiSigSrv {
         user_address: &String,
         req: NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, AppError> {
+        if req.signers.len() < 2 {
+            return Err(AppError::new(400).message("There must be more than one signer"));
+        }
+
+        if req.threshold < 2 {
+            return Err(AppError::new(400).message("Threshold must be greater than one"));
+        }
+
         let (sender, multi_sig_witness_data) =
             get_multisig_config(req.signers.clone(), req.threshold as u8)?;
 
@@ -811,5 +822,36 @@ impl MultiSigSrv {
         }
 
         Ok(result)
+    }
+
+    pub async fn update_transaction_commited(
+        &self,
+        req: &UpdateTransactionStatusReq,
+    ) -> Result<UpdateTransactionStatusRes, AppError> {
+        let mut results: HashMap<String, bool> = HashMap::new();
+
+        for tx_hash in req.tx_hashes.iter() {
+            if let Some(transaction) = self
+                .multi_sig_dao
+                .get_tx_by_hash(tx_hash)
+                .await
+                .ok()
+                .flatten()
+            {
+                if transaction.status.eq(&TRANSACTION_STATUS_PENDING)
+                    || transaction.status.eq(&TRANSACTION_STATUS_IN_PROGRESSING)
+                {
+                    if let Ok(true) = self
+                        .multi_sig_dao
+                        .update_transaction_status(tx_hash, TRANSACTION_STATUS_COMMITED)
+                        .await
+                    {
+                        results.insert(tx_hash.clone(), true);
+                    }
+                }
+            }
+        }
+
+        Ok(UpdateTransactionStatusRes { results })
     }
 }

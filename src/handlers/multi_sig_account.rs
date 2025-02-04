@@ -4,7 +4,7 @@ use crate::{
         error::AppError,
         multi_sig_account::{
             InviteStatusReq, MultiSigAccountUpdateReq, NewMultiSigAccountReq, NewTransferReq,
-            SubmitSignatureReq, TransactionFilters,
+            SubmitSignatureReq, TransactionFilters, UpdateTransactionStatusReq,
         },
     },
     services::multi_sig_account::MultiSigSrv,
@@ -194,6 +194,10 @@ async fn create_new_transfer(
         ext.get::<String>().unwrap().clone()
     };
 
+    if req.signature.is_empty() {
+        return Err(AppError::new(400).message("Signature Invalid"));
+    }
+
     match multi_sig_srv
         .create_new_transfer(&user_address, &req.signature, &req.payload)
         .await
@@ -213,6 +217,14 @@ async fn submit_signature(
         let ext = http_req.extensions();
         ext.get::<String>().unwrap().clone()
     };
+
+    if req.txid.is_empty() {
+        return Err(AppError::new(400).message("Transaction Invalid"));
+    }
+
+    if req.signature.is_empty() {
+        return Err(AppError::new(400).message("Signature Invalid"));
+    }
 
     match multi_sig_srv
         .submit_signature(&user_address, &req.signature, &req.txid)
@@ -262,6 +274,17 @@ async fn request_transaction_summary(
     }
 }
 
+async fn update_transaction_commited(
+    req: web::Json<UpdateTransactionStatusReq>,
+    multi_sig_srv: web::Data<MultiSigSrv>,
+    _: JwtMiddleware,
+) -> Result<HttpResponse, AppError> {
+    match multi_sig_srv.update_transaction_commited(&req).await {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
+    }
+}
+
 pub fn route(conf: &mut web::ServiceConfig) {
     conf.service(
         web::scope("/multi-sig")
@@ -281,6 +304,10 @@ pub fn route(conf: &mut web::ServiceConfig) {
             .route(
                 "/transactions/{address}",
                 web::get().to(request_list_transactions),
+            )
+            .route(
+                "/transactions/{address}/commited",
+                web::put().to(update_transaction_commited),
             )
             .route(
                 "/transactions/{address}/summary",
