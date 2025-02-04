@@ -215,6 +215,14 @@ impl MultiSigSrv {
         user_address: &String,
         req: NewMultiSigAccountReq,
     ) -> Result<MultiSigInfo, AppError> {
+        if req.signers.len() < 2 {
+            return Err(AppError::new(400).message("Threshold must be greater than one"));
+        }
+
+        if req.threshold < 2 {
+            return Err(AppError::new(400).message("Threshold must be greater than 1"));
+        }
+
         let (sender, multi_sig_witness_data) =
             get_multisig_config(req.signers.clone(), req.threshold as u8)?;
 
