@@ -291,6 +291,7 @@ impl MultiSigDao {
             multi_sig_address: multi_sig_address.clone(),
             payload: payload.clone(),
             status: 0,
+            updated_by: Some(signer_address.to_string()),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
@@ -348,6 +349,7 @@ impl MultiSigDao {
             multi_sig_address: multi_sig_address.to_owned(),
             payload: payload.to_owned(),
             status: 0,
+            updated_by: Some(signer_address.to_string()),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
@@ -620,6 +622,48 @@ impl MultiSigDao {
             > 0)
     }
 
+    pub async fn cancel_transaction(
+        &self,
+        transaction_id: &String,
+        signer_address: &String,
+    ) -> Result<bool, PoolError> {
+        let new_tx_id = format!(
+            "{}-cancelled-{}",
+            transaction_id,
+            chrono::Utc::now().timestamp()
+        );
+
+        let mut client: Client = self.db.get().await?;
+        let tx = client.transaction().await?;
+
+        tx.execute(
+            "UPDATE signatures SET transaction_id = $1 WHERE transaction_id = $2",
+            &[&new_tx_id, transaction_id],
+        )
+        .await?;
+
+        tx.execute(
+            "UPDATE transaction_errors SET transaction_id = $1 WHERE transaction_id = $2",
+            &[&new_tx_id, transaction_id],
+        )
+        .await?;
+
+        tx.execute(
+            "UPDATE transaction_rejects SET transaction_id = $1 WHERE transaction_id = $2",
+            &[&new_tx_id, transaction_id],
+        )
+        .await?;
+
+        tx.execute(
+            "UPDATE transactions SET transaction_id = $1, updated_by = $2, status = 5 WHERE transaction_id = $3",
+            &[&new_tx_id, signer_address, transaction_id],
+        )
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(true)
+    }
     pub async fn get_list_rejected_by_txid(
         &self,
         txid: &String,
