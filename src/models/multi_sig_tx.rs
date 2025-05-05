@@ -8,6 +8,7 @@ pub enum TransactionStatus {
     Commited,
     Rejected,
     Failed,
+    Cancelled,
 }
 
 pub const TRANSACTION_STATUS_PENDING: i16 = TransactionStatus::Pending as i16;
@@ -15,6 +16,7 @@ pub const TRANSACTION_STATUS_IN_PROGRESSING: i16 = TransactionStatus::InProgress
 pub const TRANSACTION_STATUS_COMMITED: i16 = TransactionStatus::Commited as i16;
 pub const TRANSACTION_STATUS_REJECT: i16 = TransactionStatus::Rejected as i16;
 pub const TRANSACTION_STATUS_FAILED: i16 = TransactionStatus::Failed as i16;
+pub const TRANSACTION_STATUS_CANCELLED: i16 = TransactionStatus::Cancelled as i16;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PostgresMapper)]
 #[pg_mapper(table = "transactions")]
@@ -23,6 +25,8 @@ pub struct CkbTransaction {
     pub multi_sig_address: String,
     pub payload: String,
     pub status: i16,
+
+    pub updated_by: Option<String>,
 
     #[serde(skip_serializing)]
     pub created_at: NaiveDateTime,

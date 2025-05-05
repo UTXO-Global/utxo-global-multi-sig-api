@@ -183,6 +183,7 @@ impl MultiSigSrv {
                 status: tx.status,
                 payload: tx.payload,
                 amount: first_output.capacity().unpack(),
+                updated_by: tx.updated_by.unwrap_or("".to_owned()),
                 created_at: tx.created_at.timestamp(),
                 rejected: refusers
                     .iter()
@@ -672,6 +673,30 @@ impl MultiSigSrv {
                     return Ok(true);
                 }
                 Err(AppError::new(404).message("Account not found"))
+            }
+            None => Err(AppError::new(404).message("Transaction not found")),
+        }
+    }
+
+    pub async fn cancel_transaction(
+        &self,
+        signer_address: &str,
+        txid: &str,
+    ) -> Result<bool, AppError> {
+        match self
+            .multi_sig_dao
+            .get_tx_by_hash_and_signer(signer_address, txid)
+            .await
+            .unwrap()
+        {
+            Some(transaction) => {
+                let is_cancelled = self
+                    .multi_sig_dao
+                    .cancel_transaction(&transaction.transaction_id, &signer_address.to_string())
+                    .await
+                    .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+
+                Ok(is_cancelled)
             }
             None => Err(AppError::new(404).message("Transaction not found")),
         }

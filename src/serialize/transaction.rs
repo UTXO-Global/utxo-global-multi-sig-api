@@ -13,6 +13,7 @@ pub struct TransactionInfo {
     pub rejected: Vec<String>,
     pub status: i16,
     pub payload: String,
+    pub updated_by: String,
     pub created_at: i64,
     pub amount: u64,
     pub errors: Option<Vec<TransactionError>>,
