@@ -4,16 +4,16 @@ use tokio_pg_mapper_derive::PostgresMapper;
 
 pub enum TransactionStatus {
     Pending,
-    InProgressing,
-    Commited,
+    InProgress,
+    Committed,
     Rejected,
     Failed,
     Cancelled,
 }
 
 pub const TRANSACTION_STATUS_PENDING: i16 = TransactionStatus::Pending as i16;
-pub const TRANSACTION_STATUS_IN_PROGRESSING: i16 = TransactionStatus::InProgressing as i16;
-pub const TRANSACTION_STATUS_COMMITED: i16 = TransactionStatus::Commited as i16;
+pub const TRANSACTION_STATUS_IN_PROGRESS: i16 = TransactionStatus::InProgress as i16;
+pub const TRANSACTION_STATUS_COMMITTED: i16 = TransactionStatus::Committed as i16;
 pub const TRANSACTION_STATUS_REJECT: i16 = TransactionStatus::Rejected as i16;
 pub const TRANSACTION_STATUS_FAILED: i16 = TransactionStatus::Failed as i16;
 pub const TRANSACTION_STATUS_CANCELLED: i16 = TransactionStatus::Cancelled as i16;

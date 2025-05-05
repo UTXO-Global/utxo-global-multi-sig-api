@@ -294,12 +294,12 @@ async fn request_transaction_summary(
     }
 }
 
-async fn update_transaction_commited(
+async fn update_transaction_committed(
     req: web::Json<UpdateTransactionStatusReq>,
     multi_sig_srv: web::Data<MultiSigSrv>,
     _: JwtMiddleware,
 ) -> Result<HttpResponse, AppError> {
-    match multi_sig_srv.update_transaction_commited(&req).await {
+    match multi_sig_srv.update_transaction_committed(&req).await {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
         Err(err) => Err(err),
     }
@@ -326,8 +326,8 @@ pub fn route(conf: &mut web::ServiceConfig) {
                 web::get().to(request_list_transactions),
             )
             .route(
-                "/transactions/{address}/commited",
-                web::put().to(update_transaction_commited),
+                "/transactions/{address}/committed",
+                web::put().to(update_transaction_committed),
             )
             .route(
                 "/transactions/{address}/summary",
