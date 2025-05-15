@@ -1,7 +1,10 @@
 use crate::{
     config,
     handlers::{address_book, ckb_explorer, multi_sig_account},
-    repositories::{self, db::DB_POOL},
+    repositories::{
+        self,
+        db::{migrate_db, DB_POOL},
+    },
     services,
 };
 use actix_cors::Cors;
@@ -19,6 +22,10 @@ pub fn init_routes(cfg: &mut web::ServiceConfig) {
 pub async fn create_app() -> std::io::Result<()> {
     // Init DB
     let db = &DB_POOL.clone();
+    // migrate db
+    if let Err(e) = migrate_db().await {
+        println!("\nMigrate db failed: {}", e);
+    }
     let user_dao = repositories::user::UserDao::new(db.clone());
     let multi_sig_dao = repositories::multi_sig_account::MultiSigDao::new(db.clone());
     let address_book_dao = repositories::address_book::AddressBookDao::new(db.clone());

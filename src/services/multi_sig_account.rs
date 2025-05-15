@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::models::multi_sig_invite::MultiSigInviteStatus;
 use crate::models::multi_sig_tx::{
-    CkbTransaction, TRANSACTION_STATUS_COMMITED, TRANSACTION_STATUS_FAILED,
-    TRANSACTION_STATUS_IN_PROGRESSING, TRANSACTION_STATUS_PENDING, TRANSACTION_STATUS_REJECT,
+    CkbTransaction, TRANSACTION_STATUS_COMMITTED, TRANSACTION_STATUS_FAILED,
+    TRANSACTION_STATUS_IN_PROGRESS, TRANSACTION_STATUS_PENDING, TRANSACTION_STATUS_REJECT,
 };
 use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
@@ -183,6 +183,7 @@ impl MultiSigSrv {
                 status: tx.status,
                 payload: tx.payload,
                 amount: first_output.capacity().unpack(),
+                updated_by: tx.updated_by.unwrap_or("".to_owned()),
                 created_at: tx.created_at.timestamp(),
                 rejected: refusers
                     .iter()
@@ -677,6 +678,30 @@ impl MultiSigSrv {
         }
     }
 
+    pub async fn cancel_transaction(
+        &self,
+        signer_address: &str,
+        txid: &str,
+    ) -> Result<bool, AppError> {
+        match self
+            .multi_sig_dao
+            .get_tx_by_hash_and_signer(signer_address, txid)
+            .await
+            .unwrap()
+        {
+            Some(transaction) => {
+                let is_cancelled = self
+                    .multi_sig_dao
+                    .cancel_transaction(&transaction.transaction_id, &signer_address.to_string())
+                    .await
+                    .map_err(|err| AppError::new(500).message(&err.to_string()))?;
+
+                Ok(is_cancelled)
+            }
+            None => Err(AppError::new(404).message("Transaction not found")),
+        }
+    }
+
     pub async fn get_invites_list(&self, address: &String) -> Result<Vec<InviteInfo>, AppError> {
         let accounts = self
             .multi_sig_dao
@@ -824,7 +849,7 @@ impl MultiSigSrv {
         Ok(result)
     }
 
-    pub async fn update_transaction_commited(
+    pub async fn update_transaction_committed(
         &self,
         req: &UpdateTransactionStatusReq,
     ) -> Result<UpdateTransactionStatusRes, AppError> {
@@ -839,11 +864,11 @@ impl MultiSigSrv {
                 .flatten()
             {
                 if transaction.status.eq(&TRANSACTION_STATUS_PENDING)
-                    || transaction.status.eq(&TRANSACTION_STATUS_IN_PROGRESSING)
+                    || transaction.status.eq(&TRANSACTION_STATUS_IN_PROGRESS)
                 {
                     if let Ok(true) = self
                         .multi_sig_dao
-                        .update_transaction_status(tx_hash, TRANSACTION_STATUS_COMMITED)
+                        .update_transaction_status(tx_hash, TRANSACTION_STATUS_COMMITTED)
                         .await
                     {
                         results.insert(tx_hash.clone(), true);
