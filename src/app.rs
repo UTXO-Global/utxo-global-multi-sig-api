@@ -24,7 +24,7 @@ pub async fn create_app() -> std::io::Result<()> {
     let db = &DB_POOL.clone();
     // migrate db
     if let Err(e) = migrate_db().await {
-        println!("\nMigrate db failed: {}", e);
+        println!("\nMigrate db failed: {e}");
     }
     let user_dao = repositories::user::UserDao::new(db.clone());
     let multi_sig_dao = repositories::multi_sig_account::MultiSigDao::new(db.clone());
@@ -40,7 +40,7 @@ pub async fn create_app() -> std::io::Result<()> {
 
     let listen_address: String = config::get("listen_address");
 
-    println!("\nListening and serving HTTP on {}", listen_address);
+    println!("\nListening and serving HTTP on {listen_address}");
 
     HttpServer::new(move || {
         let cors: Cors = Cors::default()

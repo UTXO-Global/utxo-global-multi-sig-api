@@ -38,9 +38,9 @@ impl AppError {
 impl Display for AppError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match (&self.cause, &self.message) {
-            (Some(cause), Some(message)) => write!(f, "{}: {}", message, cause),
-            (Some(cause), None) => write!(f, "{}", cause),
-            (None, Some(message)) => write!(f, "{}", message),
+            (Some(cause), Some(message)) => write!(f, "{message}: {cause}"),
+            (Some(cause), None) => write!(f, "{cause}"),
+            (None, Some(message)) => write!(f, "{message}"),
             (None, None) => write!(f, "{}", self.status_code().canonical_reason().unwrap()),
         }
     }
@@ -53,7 +53,7 @@ impl ResponseError for AppError {
 
     fn error_response(&self) -> actix_web::HttpResponse {
         HttpResponseBuilder::new(self.status_code()).json(AppErrorBody {
-            message: format!("{}", self),
+            message: format!("{self}"),
         })
     }
 }
