@@ -281,6 +281,7 @@ impl MultiSigSrv {
                         &transaction,
                         &account_info.multi_sig_address,
                         &signer.address,
+                        &signer.name,
                     )
                     .await
                 {
@@ -313,6 +314,7 @@ impl MultiSigSrv {
                     &transaction,
                     &account_info.multi_sig_address,
                     &signer.address,
+                    &signer.name,
                     MultiSigInviteStatus::PENDING as i16,
                 )
                 .await
@@ -746,7 +748,7 @@ impl MultiSigSrv {
             return Err(AppError::new(500).message("Invite not found"));
         }
 
-        let status = invite.unwrap().status;
+        let status = invite.clone().unwrap().status;
         if status == MultiSigInviteStatus::ACCEPTED as i16
             || status == MultiSigInviteStatus::REJECTED as i16
         {
@@ -770,7 +772,12 @@ impl MultiSigSrv {
                 if is_ok && req.status == MultiSigInviteStatus::ACCEPTED as i16 {
                     match self
                         .multi_sig_dao
-                        .add_new_signer(&transaction, &req.multisig_address, &req.address)
+                        .add_new_signer(
+                            &transaction,
+                            &req.multisig_address,
+                            &req.address,
+                            &invite.unwrap().signer_name,
+                        )
                         .await
                     {
                         Ok(_) => (),
