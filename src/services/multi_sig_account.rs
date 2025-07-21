@@ -5,7 +5,6 @@ use crate::models::multi_sig_tx::{
     CkbTransaction, TRANSACTION_STATUS_COMMITTED, TRANSACTION_STATUS_FAILED,
     TRANSACTION_STATUS_IN_PROGRESS, TRANSACTION_STATUS_PENDING, TRANSACTION_STATUS_REJECT,
 };
-use crate::repositories::address_book::AddressBookDao;
 use crate::repositories::ckb::{
     add_signature_to_witness, get_ckb_network, get_live_cell, get_multisig_config,
     get_multisig_script_hash, send_transaction,
@@ -33,14 +32,12 @@ use ckb_types::prelude::{IntoTransactionView, Pack, Unpack};
 #[derive(Clone, Debug)]
 pub struct MultiSigSrv {
     multi_sig_dao: MultiSigDao,
-    address_book_dao: AddressBookDao,
 }
 
 impl MultiSigSrv {
-    pub fn new(multi_sig_dao: MultiSigDao, address_book_dao: AddressBookDao) -> Self {
+    pub fn new(multi_sig_dao: MultiSigDao) -> Self {
         MultiSigSrv {
             multi_sig_dao: multi_sig_dao.clone(),
-            address_book_dao: address_book_dao.clone(),
         }
     }
 
