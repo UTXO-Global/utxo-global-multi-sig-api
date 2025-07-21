@@ -30,10 +30,8 @@ pub async fn create_app() -> std::io::Result<()> {
     let multi_sig_dao = repositories::multi_sig_account::MultiSigDao::new(db.clone());
     let address_book_dao = repositories::address_book::AddressBookDao::new(db.clone());
     let user_service = web::Data::new(services::user::UserSrv::new(user_dao));
-    let multi_sig_service = web::Data::new(services::multi_sig_account::MultiSigSrv::new(
-        multi_sig_dao,
-        address_book_dao.clone(),
-    ));
+    let multi_sig_service =
+        web::Data::new(services::multi_sig_account::MultiSigSrv::new(multi_sig_dao));
     let address_book_service = web::Data::new(services::address_book::AddressBookSrv::new(
         address_book_dao.clone(),
     ));
