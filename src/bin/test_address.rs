@@ -16,10 +16,10 @@ fn main() {
         Bytes::copy_from_slice(arg.as_bytes()),
     );
     let address = Address::new(NetworkType::Testnet, payload, true);
-    println!("address full {}", address);
+    println!("address full {address}");
 
     // Short - (Before - 2021)
     let payload = AddressPayload::new_short(CodeHashIndex::Multisig, arg);
     let address = Address::new(NetworkType::Testnet, payload, true);
-    println!("address short {}", address);
+    println!("address short {address}");
 }

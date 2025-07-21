@@ -31,8 +31,7 @@ impl MultiSigDao {
     ) -> Result<Option<MultiSigInfo>, PoolError> {
         let client: Client = self.db.get().await?;
 
-        let _stmt = "SELECT * FROM multi_sig_info 
-            WHERE multi_sig_address=$1;";
+        let _stmt = "SELECT * FROM multi_sig_info WHERE multi_sig_address=$1;";
         let stmt = client.prepare(_stmt).await?;
 
         let row = client.query(&stmt, &[&address]).await?.pop();
@@ -108,13 +107,16 @@ impl MultiSigDao {
         tx: &Transaction<'_>,
         multi_sig_address: &String,
         address: &String,
+        name: &String,
     ) -> Result<MultiSigSigner, PoolError> {
         let stmt: &str =
-            "INSERT INTO multi_sig_signers (multi_sig_address, signer_address) VALUES ($1, $2);";
-        tx.execute(stmt, &[multi_sig_address, address]).await?;
+            "INSERT INTO multi_sig_signers (multi_sig_address, signer_address, signer_name) VALUES ($1, $2, $3);";
+        tx.execute(stmt, &[multi_sig_address, address, name])
+            .await?;
         Ok(MultiSigSigner {
             multi_sig_address: multi_sig_address.clone(),
             signer_address: address.to_string(),
+            signer_name: name.to_string(),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
@@ -166,10 +168,10 @@ impl MultiSigDao {
         }
 
         if let Some(hash) = filters.tx_hash {
-            _stmt = format!("{} AND tx.transaction_id='{}'", _stmt, hash);
+            _stmt = format!("{_stmt} AND tx.transaction_id='{hash}'");
         }
 
-        _stmt = format!("{} ORDER BY tx.created_at DESC OFFSET $3 LIMIT $4", _stmt);
+        _stmt = format!("{_stmt} ORDER BY tx.created_at DESC OFFSET $3 LIMIT $4");
 
         let stmt = client.prepare(&_stmt).await?;
 
@@ -203,7 +205,7 @@ impl MultiSigDao {
         }
 
         if let Some(hash) = filters.tx_hash {
-            _stmt = format!("{} AND tx.transaction_id='{}'", _stmt, hash);
+            _stmt = format!("{_stmt} AND tx.transaction_id='{hash}'");
         }
 
         let stmt = client.prepare(&_stmt).await?;
@@ -496,16 +498,18 @@ impl MultiSigDao {
         tx: &Transaction<'_>,
         multi_sig_address: &String,
         address: &String,
+        name: &String,
         status: i16,
     ) -> Result<MultiSigInvite, PoolError> {
         let stmt: &str =
-            "INSERT INTO multi_sig_invites (multi_sig_address, signer_address, status) VALUES ($1, $2, $3);";
-        tx.execute(stmt, &[multi_sig_address, address, &status])
+            "INSERT INTO multi_sig_invites (multi_sig_address, signer_address, signer_name, status) VALUES ($1, $2, $3, $4);";
+        tx.execute(stmt, &[multi_sig_address, address, name, &status])
             .await?;
 
         Ok(MultiSigInvite {
             multi_sig_address: multi_sig_address.clone(),
             signer_address: address.to_string(),
+            signer_name: name.to_string(),
             status,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
