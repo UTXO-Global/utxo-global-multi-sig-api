@@ -168,10 +168,10 @@ impl MultiSigDao {
         }
 
         if let Some(hash) = filters.tx_hash {
-            _stmt = format!("{} AND tx.transaction_id='{}'", _stmt, hash);
+            _stmt = format!("{_stmt} AND tx.transaction_id='{hash}'");
         }
 
-        _stmt = format!("{} ORDER BY tx.created_at DESC OFFSET $3 LIMIT $4", _stmt);
+        _stmt = format!("{_stmt} ORDER BY tx.created_at DESC OFFSET $3 LIMIT $4");
 
         let stmt = client.prepare(&_stmt).await?;
 
@@ -205,7 +205,7 @@ impl MultiSigDao {
         }
 
         if let Some(hash) = filters.tx_hash {
-            _stmt = format!("{} AND tx.transaction_id='{}'", _stmt, hash);
+            _stmt = format!("{_stmt} AND tx.transaction_id='{hash}'");
         }
 
         let stmt = client.prepare(&_stmt).await?;
