@@ -26,7 +26,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-          version: "1.83.0"
+          version: "1.88.0"
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/auth@v2

@@ -35,7 +35,7 @@ fn get_tx_group_with_script(multisig_config: &MultisigConfig) -> TransactionWith
 
     // ckt1qpm9k0kk4cnykv6aqlnn4sejhukq7w8c6v6qa4fpedz8knzzm40sjq20eu9wnu5hp6ldrvpu69rxtksr3whw33qqqqqqqqqpqqsq7gpgtp
     let sender = multisig_config.to_address_override(network_info.network_type, Some(0));
-    println!("{}", sender);
+    println!("{sender}");
     let receiver = Address::from_str("ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2qf8keemy2p5uu0g0gn8cd4ju23s5269qk8rg4r").unwrap();
 
     // Query to RPC to get the available cells
@@ -126,11 +126,11 @@ fn main() -> Result<(), Box<dyn StdErr>> {
             .clone()
             .into_bytes(),
     );
-    println!("multi_sig_config {}", multi_sig_witness_data);
+    println!("multi_sig_config {multi_sig_witness_data}");
     let witness_full = witness;
-    println!("witness_full {}", witness_full);
+    println!("witness_full {witness_full}");
     let tx_hash = json_tx.hash;
-    println!("witness full sign by lib {}", witness_full);
+    println!("witness full sign by lib {witness_full}");
 
     // ------ 3.2 Collect signatures into seperate tx_group, to collect signature seperately ------
 
@@ -208,7 +208,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     let sig1 = Bytes::from(sig1);
 
     let signatures = vec![sig2, sig1];
-    println!("signatures {:?}", signatures);
+    println!("signatures {signatures:?}");
     let tx = Transaction::from(json_tx.clone().inner).into_view();
     let tx = add_signature_to_witness(2, &tx, &multi_sig_witness_data, signatures).unwrap();
     let json_tx_2 = ckb_jsonrpc_types::TransactionView::from(tx);
@@ -224,7 +224,7 @@ fn main() -> Result<(), Box<dyn StdErr>> {
             .into_bytes(),
     );
 
-    println!("witness {}", witness);
+    println!("witness {witness}");
 
     assert_eq!(witness_full, witness);
     assert_eq!(tx_hash, json_tx_2.hash);
@@ -233,6 +233,6 @@ fn main() -> Result<(), Box<dyn StdErr>> {
     let v = Runtime::new()
         .unwrap()
         .block_on(send_transaction(json_tx_2.inner, None));
-    println!("{:?}", v);
+    println!("{v:?}");
     Ok(())
 }

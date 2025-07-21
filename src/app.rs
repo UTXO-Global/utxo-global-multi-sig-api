@@ -24,23 +24,21 @@ pub async fn create_app() -> std::io::Result<()> {
     let db = &DB_POOL.clone();
     // migrate db
     if let Err(e) = migrate_db().await {
-        println!("\nMigrate db failed: {}", e);
+        println!("\nMigrate db failed: {e}");
     }
     let user_dao = repositories::user::UserDao::new(db.clone());
     let multi_sig_dao = repositories::multi_sig_account::MultiSigDao::new(db.clone());
     let address_book_dao = repositories::address_book::AddressBookDao::new(db.clone());
     let user_service = web::Data::new(services::user::UserSrv::new(user_dao));
-    let multi_sig_service = web::Data::new(services::multi_sig_account::MultiSigSrv::new(
-        multi_sig_dao,
-        address_book_dao.clone(),
-    ));
+    let multi_sig_service =
+        web::Data::new(services::multi_sig_account::MultiSigSrv::new(multi_sig_dao));
     let address_book_service = web::Data::new(services::address_book::AddressBookSrv::new(
         address_book_dao.clone(),
     ));
 
     let listen_address: String = config::get("listen_address");
 
-    println!("\nListening and serving HTTP on {}", listen_address);
+    println!("\nListening and serving HTTP on {listen_address}");
 
     HttpServer::new(move || {
         let cors: Cors = Cors::default()

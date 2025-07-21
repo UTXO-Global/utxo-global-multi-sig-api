@@ -82,7 +82,7 @@ impl UserSrv {
                     }
                 }
             }
-            Err(err) => Err(AppError::new(404).message(&format!("invalid address: {}", err))),
+            Err(err) => Err(AppError::new(404).message(&format!("invalid address: {err}"))),
         }
     }
 
@@ -100,7 +100,7 @@ impl UserSrv {
                 let _ = self.update_user_nonce(user.clone()).await;
 
                 let signature = req.signature;
-                let message = format!("Nervos Message:utxo.global login {}", nonce);
+                let message = format!("Nervos Message:utxo.global login {nonce}");
                 let message_hash = self.hash_ckb(message.as_bytes());
                 let secp_message =
                     Message::from_digest_slice(&message_hash).expect("Invalid message hash");

@@ -3,6 +3,11 @@ use crate::repositories::address_book::AddressBookDao;
 use crate::serialize::address_book::AddressBookReq;
 use crate::serialize::error::AppError;
 
+/// Service for managing address book operations.
+///
+/// In particular, when a user initiates a multisig transaction to a new address (e.g., address A),
+/// the service can mark address A as a known contact in the address book for future reference.
+
 #[derive(Clone, Debug)]
 pub struct AddressBookSrv {
     address_book_dao: AddressBookDao,
