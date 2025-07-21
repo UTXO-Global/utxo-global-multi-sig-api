@@ -293,20 +293,6 @@ impl MultiSigSrv {
                 }
             }
 
-            // Check and create a new address book
-            if let Ok(address_book) = self
-                .address_book_dao
-                .get_address(user_address, &signer.address)
-                .await
-            {
-                if address_book.is_none() {
-                    let _ = self
-                        .address_book_dao
-                        .add_address(user_address, &signer.address, &signer.name)
-                        .await;
-                }
-            }
-
             // Add signer to invite table
             match self
                 .multi_sig_dao
