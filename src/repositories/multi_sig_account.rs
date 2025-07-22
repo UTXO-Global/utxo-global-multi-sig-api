@@ -567,7 +567,7 @@ impl MultiSigDao {
         Ok(res > 0)
     }
 
-    pub async fn update_status_if_pending(
+    pub async fn update_new_status_for_pending(
         &self,
         transaction_id: &String,
         new_status: i16,

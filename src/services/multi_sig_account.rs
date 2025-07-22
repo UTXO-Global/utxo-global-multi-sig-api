@@ -512,7 +512,7 @@ impl MultiSigSrv {
             // Check transaction status is pending
             if !self
                 .multi_sig_dao
-                .update_status_if_pending(&tx_id, TRANSACTION_STATUS_IN_PROGRESS)
+                .update_new_status_for_pending(&tx_id, TRANSACTION_STATUS_IN_PROGRESS)
                 .await
                 .map_err(|err| {
                     AppError::new(500)
