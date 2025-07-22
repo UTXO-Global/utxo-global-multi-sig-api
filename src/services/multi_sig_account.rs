@@ -494,6 +494,10 @@ impl MultiSigSrv {
         tx: &TransactionView,
     ) -> Result<(), AppError> {
         let tx_id = hex::encode(tx.hash().raw_data());
+        let ckb_tx = self.multi_sig_dao.get_tx_by_hash(&tx_id).await.unwrap();
+        if ckb_tx.unwrap().status.ne(&TRANSACTION_STATUS_PENDING) {
+            return Ok(());
+        }
 
         // check if threshold is reached => broadcast tx
         let ckb_signatures = self
@@ -505,6 +509,20 @@ impl MultiSigSrv {
             .len()
             .ge(&(multi_sig_info.threshold as usize))
         {
+            // Check transaction status is pending
+            if !self
+                .multi_sig_dao
+                .update_new_status_for_pending(&tx_id, TRANSACTION_STATUS_IN_PROGRESS)
+                .await
+                .map_err(|err| {
+                    AppError::new(500)
+                        .cause(err)
+                        .message("Transaction status update failed")
+                })?
+            {
+                return Ok(());
+            }
+
             let signatures = ckb_signatures
                 .iter()
                 .map(|s| Bytes::from(hex::decode(s.signature.clone()).unwrap()))
@@ -553,7 +571,10 @@ impl MultiSigSrv {
         }
 
         let ckb_tx = transaction.unwrap();
-        if ckb_tx.status.ne(&TRANSACTION_STATUS_PENDING) {
+        let tx_status = ckb_tx.status;
+        if tx_status.ne(&TRANSACTION_STATUS_PENDING)
+            && tx_status.ne(&TRANSACTION_STATUS_IN_PROGRESS)
+        {
             return Err(AppError::new(404).message("Transaction not valid"));
         }
 
@@ -610,7 +631,10 @@ impl MultiSigSrv {
             .map_err(|err| AppError::new(500).message(&err.to_string()))?;
 
         // Check threshold sig
-        self.check_threshold(&multi_sig_info, &tx).await?;
+        if tx_status.eq(&TRANSACTION_STATUS_PENDING) {
+            self.check_threshold(&multi_sig_info, &tx).await?;
+        }
+
         Ok(ckb_tx)
     }
 
@@ -759,7 +783,7 @@ impl MultiSigSrv {
                             &transaction,
                             &req.multisig_address,
                             &req.address,
-                            &invite.unwrap().signer_name,
+                            &invite.unwrap().signer_name.unwrap(),
                         )
                         .await
                     {
