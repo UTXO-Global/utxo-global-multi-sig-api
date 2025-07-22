@@ -7,7 +7,7 @@ use tokio_pg_mapper_derive::PostgresMapper;
 pub struct MultiSigSigner {
     pub multi_sig_address: String,
     pub signer_address: String,
-    pub signer_name: String,
+    pub signer_name: Option<String>,
 
     #[serde(skip_serializing)]
     pub created_at: NaiveDateTime,

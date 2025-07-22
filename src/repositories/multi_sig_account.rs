@@ -116,7 +116,7 @@ impl MultiSigDao {
         Ok(MultiSigSigner {
             multi_sig_address: multi_sig_address.clone(),
             signer_address: address.to_string(),
-            signer_name: name.to_string(),
+            signer_name: Some(name.to_string()),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         })
@@ -509,7 +509,7 @@ impl MultiSigDao {
         Ok(MultiSigInvite {
             multi_sig_address: multi_sig_address.clone(),
             signer_address: address.to_string(),
-            signer_name: name.to_string(),
+            signer_name: Some(name.to_string()),
             status,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
@@ -539,6 +539,7 @@ impl MultiSigDao {
       		            FROM signatures sig 
       		            WHERE sig.transaction_id = tx.transaction_id AND sig.signer_address=$2
   	                )";
+
         let stmt = client.prepare(_stmt).await?;
 
         let transactions: Vec<CkbTransaction> = client
@@ -560,6 +561,21 @@ impl MultiSigDao {
         let stmt = "UPDATE transactions SET status=$1 WHERE transaction_id=$2";
         let res = client
             .execute(stmt, &[&status, transaction_id])
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))
+            .unwrap();
+        Ok(res > 0)
+    }
+
+    pub async fn update_status_if_pending(
+        &self,
+        transaction_id: &String,
+        new_status: i16,
+    ) -> Result<bool, PoolError> {
+        let client: Client = self.db.get().await?;
+        let stmt = "UPDATE transactions SET status=$1 WHERE transaction_id=$2 AND status=0";
+        let res = client
+            .execute(stmt, &[&new_status, transaction_id])
             .await
             .map_err(|err| AppError::new(500).message(&err.to_string()))
             .unwrap();

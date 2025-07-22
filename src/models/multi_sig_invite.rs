@@ -12,7 +12,7 @@ pub enum MultiSigInviteStatus {
 pub struct MultiSigInvite {
     pub multi_sig_address: String,
     pub signer_address: String,
-    pub signer_name: String,
+    pub signer_name: Option<String>,
     pub status: i16,
 
     #[serde(skip_serializing)]
