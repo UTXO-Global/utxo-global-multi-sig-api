@@ -19,6 +19,11 @@ name = "test_flow"
 test = false
 bench = false
 
+[[bin]]
+name = "cron"
+path = "src/bin/cron.rs"
+
+
 [package.metadata.clippy]
 skip-deps = true
 
@@ -30,7 +35,7 @@ base64 = "0.21.7"
 curl = "0.4.47"
 chrono = { version = "0.4.31", features = ["serde"] }
 dotenv = "0.15.0"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.42.0", features = ["full"] }
 r2d2 = "0.8.10"
 rand = "0.8.5"
 serde = "1.0.196"
