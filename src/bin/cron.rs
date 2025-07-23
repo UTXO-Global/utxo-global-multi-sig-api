@@ -9,12 +9,6 @@ use utxo_global_multi_sig_api::{
 };
 
 async fn run_crons(multi_sig_service: Arc<MultiSigSrv>) {
-    // let time_duration: u64 = 10;
-    // loop {
-    //     let _ = multi_sig_service.sync_ckb_status().await;
-    //     thread::sleep(Duration::from_secs(time_duration));
-    // }
-
     let _ = multi_sig_service.sync_ckb_status().await;
 }
 
