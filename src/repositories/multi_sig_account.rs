@@ -549,11 +549,6 @@ impl MultiSigDao {
       		            FROM multi_sig_signers ms
       		            WHERE ms.multi_sig_address = tx.multi_sig_address AND ms.signer_address=$2
 			            LIMIT 1
-  	                )
-  	            AND NOT EXISTS (
-      		            SELECT 1 
-      		            FROM signatures sig 
-      		            WHERE sig.transaction_id = tx.transaction_id AND sig.signer_address=$2
   	                )";
 
         let stmt = client.prepare(_stmt).await?;
