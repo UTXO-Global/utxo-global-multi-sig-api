@@ -6,7 +6,7 @@ use crate::serialize::multi_sig_account::SignerInfo;
 use crate::services::constants::{MAINNET_MULTISIG_CODE_HASH, TESTNET_MULTISIG_CODE_HASH};
 use crate::services::overrided::OverrideMultisigConfig;
 use anyhow::anyhow;
-use ckb_jsonrpc_types::{CellWithStatus, OutputsValidator, Transaction};
+use ckb_jsonrpc_types::{CellWithStatus, OutputsValidator, Transaction, TxStatus};
 use ckb_sdk::unlock::{MultisigConfig, ScriptSignError};
 use ckb_sdk::{rpc::CkbRpcClient, NetworkType};
 use ckb_sdk::{Address, RpcError};
@@ -189,4 +189,20 @@ pub fn get_multisig_config(
     let multi_sig_witness_data = hex::encode(multisig_config.to_witness_data());
 
     Ok((sender, multi_sig_witness_data))
+}
+
+pub async fn get_transaction_status(hash: &str) -> Option<TxStatus> {
+    let rpc_url: String = get_rpc();
+    let h256 = H256::from_str(&hash).ok()?;
+
+    tokio::task::spawn_blocking(move || {
+        let client = CkbRpcClient::new(&rpc_url);
+        client
+            .get_transaction(h256)
+            .ok()
+            .and_then(|res| res.map(|tx| tx.tx_status))
+    })
+    .await
+    .ok()
+    .flatten()
 }
