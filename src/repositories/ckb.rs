@@ -193,7 +193,7 @@ pub fn get_multisig_config(
 
 pub async fn get_transaction_status(hash: &str) -> Option<TxStatus> {
     let rpc_url: String = get_rpc();
-    let h256 = H256::from_str(&hash).ok()?;
+    let h256 = H256::from_str(hash).ok()?;
 
     tokio::task::spawn_blocking(move || {
         let client = CkbRpcClient::new(&rpc_url);
