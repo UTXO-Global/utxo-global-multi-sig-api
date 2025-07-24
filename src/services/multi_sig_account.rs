@@ -913,7 +913,7 @@ impl MultiSigSrv {
                 let status_update = match ckb_tx_status.status {
                     Status::Committed => TRANSACTION_STATUS_COMMITTED,
                     Status::Rejected => TRANSACTION_STATUS_REJECT,
-                    Status::Pending => TRANSACTION_STATUS_PENDING,
+                    Status::Pending => TRANSACTION_STATUS_IN_PROGRESS,
                     _ => TRANSACTION_STATUS_FAILED,
                 };
 
