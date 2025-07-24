@@ -7,7 +7,7 @@ use crate::models::multi_sig_tx::{
 };
 use crate::repositories::ckb::{
     add_signature_to_witness, get_ckb_network, get_live_cell, get_multisig_config,
-    get_multisig_script_hash, send_transaction,
+    get_multisig_script_hash, get_transaction_status, send_transaction,
 };
 use crate::repositories::db::DB_POOL;
 use crate::serialize::multi_sig_account::{
@@ -22,6 +22,7 @@ use crate::{
     serialize::{error::AppError, multi_sig_account::NewMultiSigAccountReq},
 };
 
+use ckb_jsonrpc_types::Status;
 use ckb_sdk::Address;
 use ckb_sdk::AddressPayload;
 use ckb_types::bytes::Bytes;
@@ -892,5 +893,38 @@ impl MultiSigSrv {
         }
 
         Ok(UpdateTransactionStatusRes { results })
+    }
+
+    pub async fn sync_ckb_status(&self) -> Result<(), AppError> {
+        let mut txes = self
+            .multi_sig_dao
+            .get_unconfirmed_ckb_transactions()
+            .await
+            .map_err(|err| AppError::new(500).message(&err.to_string()))
+            .unwrap();
+
+        if txes.is_empty() {
+            return Ok(());
+        }
+
+        for tx in txes.iter_mut() {
+            let hash = tx.transaction_id.clone();
+            if let Some(ckb_tx_status) = get_transaction_status(&hash).await {
+                let status_update = match ckb_tx_status.status {
+                    Status::Committed => TRANSACTION_STATUS_COMMITTED,
+                    Status::Rejected => TRANSACTION_STATUS_REJECT,
+                    Status::Pending => TRANSACTION_STATUS_PENDING,
+                    _ => TRANSACTION_STATUS_FAILED,
+                };
+
+                let _ = self
+                    .multi_sig_dao
+                    .update_transaction_status(&hash, status_update)
+                    .await;
+            } else {
+                println!("{hash}: status unknown");
+            }
+        }
+        Ok(())
     }
 }

@@ -185,6 +185,22 @@ impl MultiSigDao {
         Ok(txs)
     }
 
+    pub async fn get_unconfirmed_ckb_transactions(&self) -> Result<Vec<CkbTransaction>, PoolError> {
+        let client: Client = self.db.get().await?;
+
+        let _stmt = "SELECT * FROM transactions tx WHERE tx.status = 1 ORDER BY tx.created_at DESC OFFSET 0 LIMIT 100".to_string();
+        let stmt = client.prepare(&_stmt).await?;
+
+        let txs = client
+            .query(&stmt, &[])
+            .await?
+            .iter()
+            .map(|row| CkbTransaction::from_row_ref(row).unwrap())
+            .collect::<Vec<CkbTransaction>>();
+
+        Ok(txs)
+    }
+
     pub async fn get_total_record_by_filters(
         &self,
         user_address: &str,
@@ -533,11 +549,6 @@ impl MultiSigDao {
       		            FROM multi_sig_signers ms
       		            WHERE ms.multi_sig_address = tx.multi_sig_address AND ms.signer_address=$2
 			            LIMIT 1
-  	                )
-  	            AND NOT EXISTS (
-      		            SELECT 1 
-      		            FROM signatures sig 
-      		            WHERE sig.transaction_id = tx.transaction_id AND sig.signer_address=$2
   	                )";
 
         let stmt = client.prepare(_stmt).await?;
