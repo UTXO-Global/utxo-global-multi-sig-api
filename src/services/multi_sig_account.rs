@@ -912,9 +912,10 @@ impl MultiSigSrv {
             if let Some(ckb_tx_status) = get_transaction_status(&hash).await {
                 let status_update = match ckb_tx_status.status {
                     Status::Committed => TRANSACTION_STATUS_COMMITTED,
-                    Status::Rejected => TRANSACTION_STATUS_REJECT,
-                    Status::Pending => TRANSACTION_STATUS_IN_PROGRESS,
-                    _ => TRANSACTION_STATUS_FAILED,
+                    Status::Rejected => TRANSACTION_STATUS_FAILED,
+
+                    // Skip when status is Pending, Proposed, Unknown
+                    _ => TRANSACTION_STATUS_IN_PROGRESS,
                 };
 
                 let _ = self
